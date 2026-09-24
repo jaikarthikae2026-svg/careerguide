@@ -49,6 +49,9 @@ import {
   Users,
   Briefcase,
   ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  Award,
 } from "lucide-react";
 import "./styles.css";
 import {
@@ -64,6 +67,13 @@ import { WorkReady } from "./components/WorkReady/WorkReady";
 import { MicroInternships } from "./components/MicroInternships/MicroInternships";
 import { ReadinessAnalytics } from "./components/ReadinessAnalytics/ReadinessAnalytics";
 import { ResumeIntelligence } from "./components/ResumeIntelligence/ResumeIntelligence";
+import { RoleSwitcherBar } from "./components/Auth/RoleSwitcherBar";
+import { AuthModal } from "./components/Auth/AuthModal";
+import { OnboardingWizard } from "./components/Auth/OnboardingWizard";
+import { AdminPortal } from "./components/Portals/AdminPortal";
+import { MentorPortal } from "./components/Portals/MentorPortal";
+import { FileUploadModal } from "./components/Common/FileUploadModal";
+import { UserProfile, UserRole } from "./api";
 
 const studentName = "Divya";
 const normalizeStudentIdentity = () => {
@@ -101,7 +111,9 @@ type Page =
   | "Mock Arena"
   | "Resume Intelligence"
   | "Readiness Analytics"
-  | "Future Scope";
+  | "Mentor Portal"
+  | "Future Scope"
+  | "Admin Operations";
 const nav: { label: Page; icon: any }[] = [
   ["Command Center", LayoutDashboard],
   ["Career Passport", IdCard],
@@ -116,7 +128,9 @@ const nav: { label: Page; icon: any }[] = [
   ["Mock Arena", Mic2],
   ["Resume Intelligence", FileText],
   ["Readiness Analytics", ChartNoAxesCombined],
+  ["Mentor Portal", Award],
   ["Future Scope", Orbit],
+  ["Admin Operations", ShieldCheck],
 ].map(([label, icon]) => ({ label, icon }));
 const skillData = [
   { name: "DSA", value: 70 },
@@ -176,80 +190,284 @@ function Pill({
   );
 }
 function ProfileEditor({
+  currentUser,
+  onProfileSaved,
   close,
   act,
 }: {
+  currentUser: UserProfile;
+  onProfileSaved: (updatedUser: UserProfile) => void;
   close: () => void;
   act: (msg: string, inc?: number) => void;
 }) {
   const [form, setForm] = useState({
-    name: "Divya",
-    role: "Software Engineer",
-    location: "Bengaluru, India",
-    email: "divya.careeros@email.com",
+    fullName: currentUser?.fullName || "Divya",
+    email: currentUser?.email || "divya@careeros.demo",
+    location: currentUser?.location || "Bengaluru, India",
+    college: currentUser?.studentProfile?.college || "Vellore Institute of Technology",
+    degree: currentUser?.studentProfile?.degree || "B.Tech in Computer Science",
+    graduationYear: currentUser?.studentProfile?.graduationYear || 2026,
+    targetRole: currentUser?.studentProfile?.targetRole || "Junior Frontend Developer",
+    targetIndustry: currentUser?.studentProfile?.targetIndustry || "Fintech / SaaS",
+    preferredLanguage: (currentUser?.studentProfile as any)?.preferredLanguage || "English",
+    weeklyAvailabilityHours: currentUser?.studentProfile?.weeklyAvailabilityHours || 15,
+    workModePreference: currentUser?.studentProfile?.workModePreference || "Hybrid",
+    githubUrl: (currentUser?.studentProfile as any)?.githubUrl || "https://github.com/divya-dev",
+    portfolioUrl: (currentUser?.studentProfile as any)?.portfolioUrl || "https://divya.dev",
+    linkedinUrl: (currentUser?.studentProfile as any)?.linkedinUrl || "https://linkedin.com/in/divya-dev",
+    bio: (currentUser?.studentProfile as any)?.bio || "Passionate frontend engineer eager to build accessible and scalable web applications.",
   });
-  const updateField = (field: keyof typeof form, value: string) =>
+
+  const [activeTab, setActiveTab] = useState<"personal" | "academic" | "links">("personal");
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const updateField = (field: keyof typeof form, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.fullName.trim()) {
+      setErrorMessage("Full name is required.");
+      return;
+    }
+    if (!form.targetRole.trim()) {
+      setErrorMessage("Target role is required.");
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage("");
+
+    try {
+      const res = await careerApi.updateProfile(form);
+      if (res?.user) {
+        onProfileSaved(res.user);
+        act("Profile updated successfully.");
+        close();
+      } else {
+        throw new Error("Invalid response");
+      }
+    } catch {
+      setErrorMessage("Your profile could not be saved. Please try again.");
+      act("Your profile could not be saved. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="profileModalOverlay" onClick={close}>
-      <div className="profileModal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="profileModal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(640px, calc(100vw - 32px))", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+      >
         <div className="profileModalHeader">
           <div>
-            <p className="eyebrow">PROFILE EDITOR</p>
-            <h2>Edit professional profile</h2>
+            <p className="eyebrow">PERSISTENT PROFILE</p>
+            <h2>Edit Professional Profile</h2>
           </div>
           <button
             className="icon"
             onClick={close}
             aria-label="Close profile editor"
+            disabled={isSaving}
           >
             <X size={18} />
           </button>
         </div>
-        <div className="profileFields">
-          <label className="profileField">
-            <span>Name</span>
-            <input
-              value={form.name}
-              onChange={(e) => updateField("name", e.target.value)}
-            />
-          </label>
-          <label className="profileField">
-            <span>Target role</span>
-            <input
-              value={form.role}
-              onChange={(e) => updateField("role", e.target.value)}
-            />
-          </label>
-          <label className="profileField">
-            <span>Location</span>
-            <input
-              value={form.location}
-              onChange={(e) => updateField("location", e.target.value)}
-            />
-          </label>
-          <label className="profileField">
-            <span>Email</span>
-            <input
-              value={form.email}
-              onChange={(e) => updateField("email", e.target.value)}
-            />
-          </label>
-        </div>
-        <div className="profileActions">
-          <button className="secondary" onClick={close}>
-            Cancel
+
+        {/* Tab Sub-Navigation */}
+        <div style={{ display: "flex", gap: 8, borderBottom: "1px solid #2a2f40", paddingBottom: 10, marginBottom: 16 }}>
+          <button
+            type="button"
+            className={activeTab === "personal" ? "pill purple" : "pill"}
+            onClick={() => setActiveTab("personal")}
+          >
+            Identity & Contact
           </button>
           <button
-            className="primary"
-            onClick={() => {
-              act("Profile updated");
-              close();
-            }}
+            type="button"
+            className={activeTab === "academic" ? "pill purple" : "pill"}
+            onClick={() => setActiveTab("academic")}
           >
-            Save changes
+            Academics & Role
+          </button>
+          <button
+            type="button"
+            className={activeTab === "links" ? "pill purple" : "pill"}
+            onClick={() => setActiveTab("links")}
+          >
+            Links & Bio
           </button>
         </div>
+
+        {errorMessage && (
+          <div style={{ background: "#471822", color: "#ff8a93", border: "1px solid #782b3a", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 14 }}>
+            {errorMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ overflowY: "auto", flex: 1, paddingRight: 4 }}>
+          {activeTab === "personal" && (
+            <div className="profileFields">
+              <label className="profileField">
+                <span>Full Name *</span>
+                <input
+                  value={form.fullName}
+                  onChange={(e) => updateField("fullName", e.target.value)}
+                  placeholder="e.g. Divya"
+                  required
+                />
+              </label>
+              <label className="profileField">
+                <span>Email Address</span>
+                <input
+                  value={form.email}
+                  onChange={(e) => updateField("email", e.target.value)}
+                  placeholder="e.g. divya@university.edu"
+                />
+              </label>
+              <label className="profileField">
+                <span>Current Location</span>
+                <input
+                  value={form.location}
+                  onChange={(e) => updateField("location", e.target.value)}
+                  placeholder="e.g. Bengaluru, India"
+                />
+              </label>
+              <label className="profileField">
+                <span>Preferred Language</span>
+                <input
+                  value={form.preferredLanguage}
+                  onChange={(e) => updateField("preferredLanguage", e.target.value)}
+                  placeholder="e.g. English"
+                />
+              </label>
+            </div>
+          )}
+
+          {activeTab === "academic" && (
+            <div className="profileFields">
+              <label className="profileField">
+                <span>College / University</span>
+                <input
+                  value={form.college}
+                  onChange={(e) => updateField("college", e.target.value)}
+                  placeholder="e.g. Vellore Institute of Technology"
+                />
+              </label>
+              <label className="profileField">
+                <span>Degree & Major</span>
+                <input
+                  value={form.degree}
+                  onChange={(e) => updateField("degree", e.target.value)}
+                  placeholder="e.g. B.Tech in Computer Science"
+                />
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <label className="profileField">
+                  <span>Graduation Year</span>
+                  <input
+                    type="number"
+                    value={form.graduationYear}
+                    onChange={(e) => updateField("graduationYear", Number(e.target.value))}
+                    min={2024}
+                    max={2030}
+                  />
+                </label>
+                <label className="profileField">
+                  <span>Weekly Availability (Hours)</span>
+                  <input
+                    type="number"
+                    value={form.weeklyAvailabilityHours}
+                    onChange={(e) => updateField("weeklyAvailabilityHours", Number(e.target.value))}
+                    min={5}
+                    max={40}
+                  />
+                </label>
+              </div>
+              <label className="profileField">
+                <span>Target Professional Role *</span>
+                <input
+                  value={form.targetRole}
+                  onChange={(e) => updateField("targetRole", e.target.value)}
+                  placeholder="e.g. Junior Frontend Developer"
+                  required
+                />
+              </label>
+              <label className="profileField">
+                <span>Target Industry</span>
+                <input
+                  value={form.targetIndustry}
+                  onChange={(e) => updateField("targetIndustry", e.target.value)}
+                  placeholder="e.g. Fintech / SaaS"
+                />
+              </label>
+              <label className="profileField">
+                <span>Work Mode Preference</span>
+                <select
+                  value={form.workModePreference}
+                  onChange={(e) => updateField("workModePreference", e.target.value)}
+                  style={{ background: "#1a1f2c", border: "1px solid #2c3344", borderRadius: 10, padding: "12px 13px", color: "#edf0f8", fontSize: 15 }}
+                >
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="Remote">Remote</option>
+                  <option value="On-site">On-site</option>
+                </select>
+              </label>
+            </div>
+          )}
+
+          {activeTab === "links" && (
+            <div className="profileFields">
+              <label className="profileField">
+                <span>GitHub Profile URL</span>
+                <input
+                  value={form.githubUrl}
+                  onChange={(e) => updateField("githubUrl", e.target.value)}
+                  placeholder="https://github.com/..."
+                />
+              </label>
+              <label className="profileField">
+                <span>Portfolio / Live Demo URL</span>
+                <input
+                  value={form.portfolioUrl}
+                  onChange={(e) => updateField("portfolioUrl", e.target.value)}
+                  placeholder="https://..."
+                />
+              </label>
+              <label className="profileField">
+                <span>LinkedIn Profile URL</span>
+                <input
+                  value={form.linkedinUrl}
+                  onChange={(e) => updateField("linkedinUrl", e.target.value)}
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </label>
+              <label className="profileField">
+                <span>Professional Bio & Summary</span>
+                <textarea
+                  value={form.bio}
+                  onChange={(e) => updateField("bio", e.target.value)}
+                  rows={3}
+                  style={{ background: "#1a1f2c", border: "1px solid #2c3344", borderRadius: 10, padding: "12px 13px", color: "#edf0f8", fontSize: 14, fontFamily: "inherit", resize: "vertical" }}
+                  placeholder="Summarize your technical foundation, projects, and career ambitions..."
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="profileActions" style={{ marginTop: 22 }}>
+            <button type="button" className="secondary" onClick={close} disabled={isSaving}>
+              Cancel
+            </button>
+            <button type="submit" className="primary" disabled={isSaving} style={{ minWidth: 140 }}>
+              {isSaving ? "Saving profile..." : "Save changes"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -377,101 +595,212 @@ function SettingsPanel({
     </div>
   );
 }
-function NotificationsPanel({ close }: { close: () => void }) {
-  const notifications = [
-    {
-      title: "Daily mission update",
-      detail: "Your Trees practice plan is ready for today.",
-      time: "2h ago",
-    },
-    {
-      title: "Interview reminder",
-      detail: "Mock interview session starts in 30 minutes.",
-      time: "Today",
-    },
-    {
-      title: "Resume insight",
-      detail: "Add SQL keywords to improve your backend fit.",
-      time: "Yesterday",
-    },
-  ];
+function NotificationsPanel({
+  close,
+  notifications,
+  onMarkRead,
+  onMarkAllRead,
+}: {
+  close: () => void;
+  notifications: any[];
+  onMarkRead: (id: string) => void;
+  onMarkAllRead: () => void;
+}) {
+  const [tab, setTab] = useState<'all' | 'unread' | 'prefs'>('all');
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [reviewAlerts, setReviewAlerts] = useState(true);
+  const [appAlerts, setAppAlerts] = useState(true);
+
+  const filtered = notifications.filter((n) => (tab === 'unread' ? !n.isRead : true));
 
   return (
     <div className="profileModalOverlay" onClick={close}>
-      <div className="profileModal" onClick={(e) => e.stopPropagation()}>
+      <div className="profileModal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
         <div className="profileModalHeader">
           <div>
-            <p className="eyebrow">NOTIFICATIONS</p>
-            <h2>Your updates</h2>
+            <p className="eyebrow">IN-APP NOTIFICATIONS</p>
+            <h2 style={{ fontSize: 18, margin: '2px 0' }}>Activity Stream & Alerts</h2>
           </div>
           <button className="icon" onClick={close} aria-label="Close notifications">
             <X size={18} />
           </button>
         </div>
-        <div className="notificationList">
-          {notifications.map((item) => (
-            <div key={item.title} className="notificationItem">
-              <div className="notificationDot" />
-              <div>
-                <b>{item.title}</b>
-                <p>{item.detail}</p>
-              </div>
-              <span>{item.time}</span>
-            </div>
-          ))}
+
+        {/* Filter Tabs & Mark All Read */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0 14px' }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className={tab === 'all' ? 'primary' : 'secondary'}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setTab('all')}
+            >
+              All ({notifications.length})
+            </button>
+            <button
+              type="button"
+              className={tab === 'unread' ? 'primary' : 'secondary'}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setTab('unread')}
+            >
+              Unread ({notifications.filter((n) => !n.isRead).length})
+            </button>
+            <button
+              type="button"
+              className={tab === 'prefs' ? 'primary' : 'secondary'}
+              style={{ fontSize: 11, padding: '4px 10px' }}
+              onClick={() => setTab('prefs')}
+            >
+              Preferences
+            </button>
+          </div>
+
+          {tab !== 'prefs' && (
+            <button
+              type="button"
+              className="textBtn"
+              style={{ fontSize: 11, color: '#8777f2' }}
+              onClick={onMarkAllRead}
+            >
+              Mark all read
+            </button>
+          )}
         </div>
+
+        {tab === 'prefs' ? (
+          <div style={{ background: '#131522', padding: 14, borderRadius: 8, border: '1px solid #232a3c', display: 'grid', gap: 12 }}>
+            <b style={{ fontSize: 12, color: '#f0edff' }}>Notification Channel Preferences:</b>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
+              <span>Mentor Review & Evidence Verification Alerts</span>
+              <input type="checkbox" checked={reviewAlerts} onChange={(e) => setReviewAlerts(e.target.checked)} />
+            </label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
+              <span>Job Application Status Changes & Interview Invites</span>
+              <input type="checkbox" checked={appAlerts} onChange={(e) => setAppAlerts(e.target.checked)} />
+            </label>
+            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, cursor: 'pointer' }}>
+              <span>Daily Career Mission & Micro-Internship Reminders</span>
+              <input type="checkbox" checked={emailAlerts} onChange={(e) => setEmailAlerts(e.target.checked)} />
+            </label>
+          </div>
+        ) : (
+          <div className="notificationList" style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px', color: '#8e96a8', fontSize: 12 }}>
+                No notifications to display.
+              </div>
+            ) : (
+              filtered.map((item) => (
+                <div
+                  key={item.id || item.title}
+                  className="notificationItem"
+                  style={{
+                    background: item.isRead ? 'transparent' : 'rgba(135,119,242,0.06)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => onMarkRead(item.id)}
+                >
+                  <div
+                    className="notificationDot"
+                    style={{ background: item.isRead ? '#3a425c' : '#8777f2' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <b style={{ fontSize: 12, color: item.isRead ? '#cbd1e1' : '#f0edff' }}>{item.title}</b>
+                    <p style={{ fontSize: 11, margin: '2px 0 0', color: '#8e96a8' }}>{item.detail}</p>
+                  </div>
+                  <span style={{ fontSize: 10, color: '#68728a' }}>{item.timeAgo || item.time || 'Recent'}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-function PersonProfilePanel({ close }: { close: () => void }) {
-  const person = {
-    name: "Divya",
-    role: "Software Engineer",
-    location: "Bengaluru, India",
-    email: "divya.careeros@email.com",
-    profileStrength: "8.4 / 10",
-    focus: "Trees & Graphs, SQL, and System Design",
-  };
+function PersonProfilePanel({
+  currentUser,
+  openEditor,
+  close,
+}: {
+  currentUser: UserProfile;
+  openEditor: () => void;
+  close: () => void;
+}) {
+  const initials = currentUser?.fullName
+    ? currentUser.fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "DV";
 
   return (
     <div className="profileModalOverlay" onClick={close}>
       <div className="profileModal" onClick={(e) => e.stopPropagation()}>
         <div className="profileModalHeader">
           <div>
-            <p className="eyebrow">ABOUT</p>
-            <h2>Profile overview</h2>
+            <p className="eyebrow">IDENTITY</p>
+            <h2>Profile Overview</h2>
           </div>
           <button className="icon" onClick={close} aria-label="Close profile overview">
             <X size={18} />
           </button>
         </div>
         <div className="profileFields">
-          <div className="profilePreview" style={{ display: "grid", gap: 12 }}>
+          <div className="profilePreview" style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div className="avatar" style={{ width: 52, height: 52, fontSize: 18 }}>
-              DV
+              {initials}
             </div>
             <div>
-              <h3 style={{ margin: 0 }}>{person.name}</h3>
-              <p style={{ margin: "4px 0 0", color: "#b7bfd6" }}>{person.role}</p>
+              <h3 style={{ margin: 0 }}>{currentUser?.fullName || "Divya"}</h3>
+              <p style={{ margin: "4px 0 0", color: "#b7bfd6" }}>
+                {currentUser?.studentProfile?.targetRole || (currentUser?.role === 'mentor' ? 'Senior Mentor' : currentUser?.role === 'platform_admin' ? 'Administrator' : 'Student')}
+              </p>
+              <small style={{ color: "#8e95a5" }}>{currentUser?.studentProfile?.college || currentUser?.location}</small>
             </div>
           </div>
           <label className="profileField">
             <span>Location</span>
-            <input value={person.location} readOnly />
+            <input value={currentUser?.location || "Bengaluru, India"} readOnly />
           </label>
           <label className="profileField">
             <span>Email</span>
-            <input value={person.email} readOnly />
+            <input value={currentUser?.email || "divya@careeros.demo"} readOnly />
           </label>
           <label className="profileField">
-            <span>Profile strength</span>
-            <input value={person.profileStrength} readOnly />
+            <span>College / Institute</span>
+            <input value={currentUser?.studentProfile?.college || "Vellore Institute of Technology"} readOnly />
           </label>
           <label className="profileField">
-            <span>Current focus</span>
-            <input value={person.focus} readOnly />
+            <span>Degree & Grad Year</span>
+            <input value={`${currentUser?.studentProfile?.degree || "B.Tech in Computer Science"} (${currentUser?.studentProfile?.graduationYear || 2026})`} readOnly />
           </label>
+          <label className="profileField">
+            <span>Target Role & Industry</span>
+            <input value={`${currentUser?.studentProfile?.targetRole || "Junior Frontend Developer"} · ${currentUser?.studentProfile?.targetIndustry || "Fintech / SaaS"}`} readOnly />
+          </label>
+          {(currentUser?.studentProfile as any)?.bio && (
+            <label className="profileField">
+              <span>Bio</span>
+              <input value={(currentUser?.studentProfile as any).bio} readOnly />
+            </label>
+          )}
+        </div>
+        <div className="profileActions" style={{ marginTop: 20 }}>
+          <button className="secondary" onClick={close}>
+            Close
+          </button>
+          <button
+            className="primary"
+            onClick={() => {
+              close();
+              openEditor();
+            }}
+          >
+            Edit profile
+          </button>
         </div>
       </div>
     </div>
@@ -489,6 +818,66 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [personProfileOpen, setPersonProfileOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [fileUploadOpen, setFileUploadOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([
+    {
+      id: "notif-1",
+      title: "Project Verified on Career Passport!",
+      detail: "Sneha Roy verified 'Placement Analytics Dashboard' with a 4.6/5 rating.",
+      type: "PROJECT_VERIFIED",
+      isRead: false,
+      timeAgo: "10m ago",
+    },
+    {
+      id: "notif-2",
+      title: "Technical Interview Scheduled",
+      detail: "TechNova Labs moved your application to Technical Interview stage.",
+      type: "APPLICATION_UPDATE",
+      isRead: false,
+      timeAgo: "1h ago",
+    },
+    {
+      id: "notif-3",
+      title: "Career Pod Mission Check-In",
+      detail: "Frontend Pod Alpha: 5 of 8 members completed this week's testing mission.",
+      type: "POD_ACTIVITY",
+      isRead: true,
+      timeAgo: "Yesterday",
+    },
+  ]);
+  const [unreadCount, setUnreadCount] = useState(2);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem("careeros_user_profile");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return {
+      id: "usr-student-1",
+      email: "divya@careeros.demo",
+      fullName: "Divya",
+      role: "student",
+      location: "Bengaluru, India",
+      isEmailVerified: true,
+      studentProfile: {
+        id: "sp-1",
+        college: "Vellore Institute of Technology",
+        degree: "B.Tech in Computer Science",
+        graduationYear: 2026,
+        targetRole: "Junior Frontend Developer",
+        targetIndustry: "Fintech / SaaS",
+        currentReadiness: 68,
+        currentLevel: 8,
+        xp: 1650,
+        weeklyAvailabilityHours: 15,
+        workModePreference: "Hybrid",
+        financialConstraints: false,
+      },
+    };
+  });
   const [stressSupport, setStressSupport] = useState(false);
   const [apiError, setApiError] = useState("");
   const [toast, setToast] = useState("");
@@ -499,28 +888,84 @@ function App() {
     status: string;
   } | null>(null);
   const [company, setCompany] = useState("Nexa Systems");
+
   useEffect(() => {
     careerApi
       .loginDemo()
-      .then(() => careerApi.dashboard())
-      .then((data) => {
-        setReadiness(data.placementReadiness.overallScore);
-        setXp(data.xp);
-        setTarget(
-          data.activeTargetCompany?.name ||
-            data.activeTargetCompany?.company?.name ||
-            "Nexa Systems",
-        );
-        setCompany(
-          data.activeTargetCompany?.name ||
-            data.activeTargetCompany?.company?.name ||
-            "Nexa Systems",
-        );
+      .then(() => careerApi.getDashboard())
+      .then((data: any) => {
+        if (data?.placementReadiness?.overallScore) {
+          setReadiness(data.placementReadiness.overallScore);
+        }
+        if (data?.xp) setXp(data.xp);
       })
       .catch((error) =>
         setApiError(`Live career data unavailable: ${error.message}`),
       );
+
+    careerApi
+      .getProfile()
+      .then((res) => {
+        if (res?.user) {
+          setCurrentUser(res.user);
+        }
+      })
+      .catch(() => {});
+
+    careerApi
+      .getInAppNotifications()
+      .then((res) => {
+        if (res?.notifications) {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unreadCount);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleMarkRead = async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await careerApi.markNotificationAsRead(id);
+    } catch {
+      // Local fallback
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+    try {
+      await careerApi.markAllNotificationsAsRead();
+    } catch {
+      // Local fallback
+    }
+  };
+
+  const handleSwitchRole = async (role: UserRole) => {
+    try {
+      const res = await careerApi.switchRole(role);
+      setCurrentUser(res.user);
+      localStorage.setItem("careeros_user_profile", JSON.stringify(res.user));
+      if (role === "platform_admin") {
+        setPage("Admin Operations");
+      } else if (role === "mentor") {
+        setPage("Mentor Portal");
+      } else {
+        setPage("Command Center");
+      }
+    } catch {
+      setCurrentUser((prev) => ({ ...prev, role }));
+      if (role === "platform_admin") {
+        setPage("Admin Operations");
+      } else if (role === "mentor") {
+        setPage("Mentor Portal");
+      }
+    }
+  };
   const act = (msg: string, inc = 0) => {
     if (msg.includes("reduced") || msg === "stress-support") {
       localStorage.setItem("careerOSStress", "true");
@@ -543,6 +988,16 @@ function App() {
   const filteredNav = nav.filter(({ label }) =>
     label.toLowerCase().includes(searchQuery.trim().toLowerCase()),
   );
+
+  const userInitials = currentUser?.fullName
+    ? currentUser.fullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "DV";
+
   return (
     <div className="app">
       <aside className={sidebar ? "sidebar" : "sidebar collapsed"}>
@@ -589,18 +1044,29 @@ function App() {
               onClick={() => setPersonProfileOpen(true)}
               style={{ cursor: "pointer" }}
             >
-              DV
+              {userInitials}
             </div>
             {sidebar && (
               <div>
-                <b>Divya</b>
-                <small>Level 12</small>
+                <b>{currentUser?.fullName || "Divya"}</b>
+                <small>Level {currentUser?.studentProfile?.currentLevel || 8}</small>
               </div>
             )}
           </div>
         </div>
       </aside>
       <main>
+        <RoleSwitcherBar
+          currentUser={currentUser}
+          onSwitchRole={handleSwitchRole}
+          onOpenAuthModal={() => setAuthModalOpen(true)}
+          onOpenOnboarding={() => setOnboardingOpen(true)}
+          onLogout={() => {
+            careerApi.logout();
+            act("Logged out. Switched to Guest persona.");
+          }}
+          act={act}
+        />
         <header>
           <button
             className="mobileMenu icon"
@@ -626,16 +1092,41 @@ function App() {
             <button className="aiButton" onClick={() => setAssistant(true)}>
               <Sparkles size={16} /> Ask CareerOS AI
             </button>
-            <button className="icon" onClick={() => setNotificationsOpen(true)}>
+            <button
+              className="icon"
+              onClick={() => setNotificationsOpen(true)}
+              style={{ position: "relative" }}
+              aria-label="Notifications"
+            >
               <Bell size={19} />
-              <i />
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -2,
+                    right: -2,
+                    background: "#ff8a8a",
+                    color: "#fff",
+                    fontSize: 9,
+                    fontWeight: "bold",
+                    borderRadius: "50%",
+                    width: 15,
+                    height: 15,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {unreadCount}
+                </span>
+              )}
             </button>
             <div
               className="avatar"
               onClick={() => setPersonProfileOpen(true)}
               style={{ cursor: "pointer" }}
             >
-              DV
+              {userInitials}
             </div>
           </div>
         </header>
@@ -656,10 +1147,13 @@ function App() {
                 setProfileOpen(true);
                 act("Profile editor opened");
               }}
+              openVault={() => setFileUploadOpen(true)}
+              currentUser={currentUser}
+              readiness={readiness}
             />
           )}{" "}
           {page === "Skill Tree" && (
-            <SkillTree selected={skill} setSelected={setSkill} act={act} />
+            <SkillTree selected={skill} setSelected={setSkill} act={act} go={setPage} />
           )}{" "}
           {page === "Career Roadmap" && <Roadmap go={setPage} act={act} />}{" "}
           {page === "Learning Hub" && <Learning act={act} />}{" "}
@@ -695,21 +1189,68 @@ function App() {
           {page === "Readiness Analytics" && (
             <ReadinessAnalytics readiness={readiness} go={setPage} act={act} />
           )}{" "}
-          {page === "Future Scope" && <Future act={act} />}
+          {page === "Mentor Portal" && <MentorPortal act={act} />}{" "}
+          {page === "Future Scope" && <Future act={act} />}{" "}
+          {page === "Admin Operations" && <AdminPortal act={act} />}
         </div>
       </main>
       {assistant && <Ai close={() => setAssistant(false)} act={act} />}{" "}
       {profileOpen && (
-        <ProfileEditor close={() => setProfileOpen(false)} act={act} />
+        <ProfileEditor
+          currentUser={currentUser}
+          onProfileSaved={(u) => {
+            setCurrentUser(u);
+            localStorage.setItem("careeros_user_profile", JSON.stringify(u));
+          }}
+          close={() => setProfileOpen(false)}
+          act={act}
+        />
       )}{" "}
       {settingsOpen && (
         <SettingsPanel close={() => setSettingsOpen(false)} act={act} />
       )}
       {notificationsOpen && (
-        <NotificationsPanel close={() => setNotificationsOpen(false)} />
+        <NotificationsPanel
+          close={() => setNotificationsOpen(false)}
+          notifications={notifications}
+          onMarkRead={handleMarkRead}
+          onMarkAllRead={handleMarkAllRead}
+        />
       )}
       {personProfileOpen && (
-        <PersonProfilePanel close={() => setPersonProfileOpen(false)} />
+        <PersonProfilePanel
+          currentUser={currentUser}
+          openEditor={() => setProfileOpen(true)}
+          close={() => setPersonProfileOpen(false)}
+        />
+      )}
+      {fileUploadOpen && (
+        <FileUploadModal
+          onClose={() => setFileUploadOpen(false)}
+          act={act}
+        />
+      )}
+      {authModalOpen && (
+        <AuthModal
+          onClose={() => setAuthModalOpen(false)}
+          onLoginSuccess={(u) => {
+            setCurrentUser(u);
+            localStorage.setItem("careeros_user_profile", JSON.stringify(u));
+          }}
+          onOpenOnboarding={() => setOnboardingOpen(true)}
+          act={act}
+        />
+      )}
+      {onboardingOpen && (
+        <OnboardingWizard
+          initialUser={currentUser}
+          onClose={() => setOnboardingOpen(false)}
+          onComplete={(u) => {
+            setCurrentUser(u);
+            localStorage.setItem("careeros_user_profile", JSON.stringify(u));
+          }}
+          act={act}
+        />
       )}
       {toast && (
         <div className="toast">
@@ -742,14 +1283,34 @@ function Dashboard(p: any) {
           <p className="eyebrow">PLACEMENT READINESS</p>
           <Score value={p.readiness} />
           <b className="level">
-            Placement Explorer <Pill>Level 12</Pill>
+            Placement Explorer <Pill tone="purple">Level 8</Pill>
           </b>
-          <div className="xp">
-            <span>1,250 / 2,000 XP</span>
+          <div className="xp" style={{ marginBottom: 12 }}>
+            <span>{p.xp} / 2,000 XP</span>
             <div>
-              <i style={{ width: p.xp / 20 + "%" }} />
+              <i style={{ width: Math.min(100, p.xp / 20) + "%" }} />
             </div>
-            <small>Next: Career Strategist</small>
+            <small>Target: Junior Frontend Developer</small>
+          </div>
+
+          {/* 4-Factor Weighted Readiness Breakdown */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%", fontSize: 10, background: "#121422", padding: "10px 12px", borderRadius: 8, border: "1px solid #232a3c" }}>
+            <div>
+              <span style={{ color: "#8e96a8" }}>Technical Skills:</span>
+              <b style={{ color: "#86e5b1", display: "block" }}>74/100</b>
+            </div>
+            <div>
+              <span style={{ color: "#8e96a8" }}>Learning Path:</span>
+              <b style={{ color: "#ffd175", display: "block" }}>67/100</b>
+            </div>
+            <div>
+              <span style={{ color: "#8e96a8" }}>Project Evidence:</span>
+              <b style={{ color: "#a89bff", display: "block" }}>84/100</b>
+            </div>
+            <div>
+              <span style={{ color: "#8e96a8" }}>Mentor Reviews:</span>
+              <b style={{ color: "#86e5b1", display: "block" }}>92/100</b>
+            </div>
           </div>
         </Card>
         <Card className="next">
@@ -762,25 +1323,25 @@ function Dashboard(p: any) {
             </button>
           </div>
           <h2>
-            Master <em>Trees & Graphs</em>
+            Complete <em>React Render Optimization</em>
           </h2>
           <p>
-            Improving this skill could increase your readiness from{" "}
+            Completing this lesson and exercise will increase your overall placement readiness from{" "}
             {p.readiness}% to approximately{" "}
             <strong>{Math.min(100, p.readiness + 6)}%</strong>.
           </p>
           <div className="buttonRow">
             <button className="primary" onClick={() => p.go("Learning Hub")}>
-              <Play size={16} /> Start learning
+              <Play size={16} /> Start lesson in Learning Hub
             </button>
-            <button className="secondary" onClick={() => p.go("Skill Tree")}>
-              View skill tree <ChevronRight size={16} />
+            <button className="secondary" onClick={() => p.go("Career Passport")}>
+              View Career Passport <ChevronRight size={16} />
             </button>
           </div>
           <div className="aiReason">
             <Brain size={17} />
             <span>
-              <b>Why this now?</b> Required by 4 of your 5 selected companies.
+              <b>Why this now?</b> Identified as your top priority gap from the Diagnostic Assessment.
             </span>
           </div>
         </Card>
@@ -881,146 +1442,1003 @@ function Dashboard(p: any) {
     </>
   );
 }
-function Passport({ act, openProfile }: any) {
+function Passport({ act, openProfile, openVault, currentUser, readiness }: any) {
+  const [submissions, setSubmissions] = useState<any[]>([
+    {
+      id: "proj-sub-1",
+      title: "Responsive Student Placement Analytics Dashboard",
+      role: "Junior Frontend Developer",
+      problemStatement:
+        "Colleges lack real-time visibility into department placement readiness, skill gaps, and employer conversion trends.",
+      requiredSkills: ["React.js", "TypeScript", "Recharts", "Vitest", "CSS Variables"],
+      repoUrl: "https://github.com/divya-dev/placement-analytics-dashboard",
+      liveDemoUrl: "https://placement-analytics.careeros.app",
+      decisionsNotes:
+        "Implemented responsive CSS grid cards, memoized chart calculations with useMemo, and wrote 12 Vitest unit tests with 88% branch coverage.",
+      status: "Verified",
+      score: 86,
+      review: {
+        reviewerName: "Sneha Roy",
+        reviewerRole: "Senior Frontend Architect",
+        organization: "Microsoft India",
+        overallScore: 4.6,
+        correctnessScore: 5,
+        qualityScore: 4,
+        clarityScore: 5,
+        problemSolvingScore: 5,
+        strengthFeedback:
+          "Excellent component decomposition, clean TypeScript interfaces, and great use of responsive dark purple theme styling. The 12 Vitest tests demonstrate high production diligence.",
+        improvementFeedback:
+          "Consider lazy-loading heavy chart visualization modules with React.lazy() to further optimize initial bundle size.",
+        reviewedAt: "2026-09-20T14:30:00.000Z",
+      },
+      passportVisibility: "Recruiters only",
+      verifiedAt: "2026-09-20",
+    },
+  ]);
+
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState<string | null>(null);
+
+  // Submission Form State
+  const [projectTitle, setProjectTitle] = useState("AI-Powered Merchant Checkout Flow");
+  const [problemStatement, setProblemStatement] = useState("High cart abandonment on mobile due to multi-step checkout friction.");
+  const [repoUrl, setRepoUrl] = useState("https://github.com/divya-dev/merchant-checkout");
+  const [liveDemoUrl, setLiveDemoUrl] = useState("https://checkout.careeros.app");
+  const [decisionsNotes, setDecisionsNotes] = useState("Implemented single-page accordion checkout with instant client validation and 8 Vitest tests.");
+
+  // Review Form State
+  const [reviewerName, setReviewerName] = useState("Sneha Roy");
+  const [reviewerRole, setReviewerRole] = useState("Senior Frontend Architect (Microsoft)");
+  const [correctnessScore, setCorrectnessScore] = useState(5);
+  const [qualityScore, setQualityScore] = useState(4);
+  const [clarityScore, setClarityScore] = useState(5);
+  const [problemSolvingScore, setProblemSolvingScore] = useState(5);
+  const [strengthFeedback, setStrengthFeedback] = useState("Exceptional error boundary handling, strong TypeScript typing, and accessible form labels.");
+  const [improvementFeedback, setImprovementFeedback] = useState("Add keyboard shortcut navigation for power users.");
+
+  const [visibilitySetting, setVisibilitySetting] = useState<
+    "Private" | "Mentors only" | "Recruiters only" | "Public preview"
+  >("Recruiters only");
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newRecord = {
+      id: "proj-sub-" + Date.now(),
+      title: projectTitle,
+      role: currentUser?.studentProfile?.targetRole || "Junior Frontend Developer",
+      problemStatement,
+      requiredSkills: ["React", "TypeScript", "Vitest"],
+      repoUrl,
+      liveDemoUrl,
+      decisionsNotes,
+      status: "Requested",
+      approvedForPassport: true,
+      passportVisibility: visibilitySetting,
+      submittedAt: new Date().toISOString(),
+    };
+
+    setSubmissions([newRecord, ...submissions]);
+    setSubmitModalOpen(false);
+    act("Project evidence submitted to Project Studio! (+100 XP)", 100);
+
+    try {
+      await careerApi.submitProject({
+        title: projectTitle,
+        problemStatement,
+        repoUrl,
+        liveDemoUrl,
+        decisionsNotes,
+      });
+    } catch {
+      // Local fallback
+    }
+  };
+
+  const handleAddReview = async (e: React.FormEvent, projId: string) => {
+    e.preventDefault();
+    const avgScore = Number(
+      ((correctnessScore + qualityScore + clarityScore + problemSolvingScore) / 4).toFixed(1),
+    );
+
+    const reviewObj = {
+      reviewerName,
+      reviewerRole,
+      organization: "Microsoft India",
+      overallScore: avgScore,
+      correctnessScore,
+      qualityScore,
+      clarityScore,
+      problemSolvingScore,
+      strengthFeedback,
+      improvementFeedback,
+      reviewedAt: new Date().toISOString(),
+    };
+
+    setSubmissions((prev) =>
+      prev.map((p) =>
+        p.id === projId
+          ? {
+              ...p,
+              review: reviewObj,
+              status: "Verified",
+              score: Math.round(avgScore * 20),
+              verifiedAt: new Date().toISOString().slice(0, 10),
+            }
+          : p,
+      ),
+    );
+
+    setReviewModalOpen(null);
+    act(`Project review recorded by ${reviewerName}! Status: VERIFIED (+200 XP)`, 200);
+
+    try {
+      await careerApi.submitProjectReview(projId, {
+        reviewerName,
+        reviewerRole,
+        organization: "Microsoft India",
+        correctnessScore,
+        qualityScore,
+        clarityScore,
+        problemSolvingScore,
+        strengthFeedback,
+        improvementFeedback,
+      });
+    } catch {
+      // Local fallback
+    }
+  };
+
   const skills = [
-    ["Python", 85, "Advanced"],
-    ["DSA", 65, "Intermediate"],
-    ["DBMS", 60, "Intermediate"],
-    ["Operating Systems", 35, "Beginner"],
-    ["Communication", 72, "Intermediate"],
+    ["React & Component Architecture", 88, "Advanced (Verified by Project Evidence)"],
+    ["TypeScript & Type Safety", 82, "Advanced (Verified by Codebase)"],
+    ["JavaScript Async & Closures", 85, "Advanced (Diagnostic Calibrated)"],
+    ["Vitest Automated Testing", 78, "Intermediate (Verified by 12 Tests)"],
+    ["Technical Communication", 80, "Intermediate (Microsoft Mentor Review)"],
   ];
+
+  const studentInitials = currentUser?.fullName
+    ? currentUser.fullName
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "DV";
+
   return (
     <>
       <div className="titleRow">
         <div>
-          <p className="eyebrow">AI CAREER PASSPORT</p>
-          <h1>Your unified professional profile</h1>
+          <p className="eyebrow">AI CAREER PASSPORT & PROJECT STUDIO</p>
+          <h1>Your Verified Professional Proof Packet</h1>
           <p className="muted">
-            Evidence-based signals that shape your career path.
+            Evidence-based artifacts, mentor reviews, and verified skill signals that shape your placement readiness.
           </p>
         </div>
-        <button
-          className="secondary"
-          onClick={() => {
-            openProfile();
-            act("Profile editor opened");
-          }}
-        >
-          Edit profile
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            className="secondary"
+            onClick={() => {
+              if (openVault) openVault();
+              act("Encrypted File Vault opened");
+            }}
+          >
+            🔒 Encrypted Vault
+          </button>
+          <button
+            className="secondary"
+            onClick={() => {
+              openProfile();
+              act("Profile editor opened");
+            }}
+          >
+            Edit profile
+          </button>
+          <button className="primary" onClick={() => setSubmitModalOpen(true)}>
+            <Sparkles size={15} /> Submit Project Evidence
+          </button>
+        </div>
       </div>
-      <Card className="passportHero">
-        <div className="avatar huge">AJ</div>
+
+      <Card className="passportHero" style={{ marginBottom: 20 }}>
+        <div className="avatar huge" style={{ background: "#262047", color: "#b3a5ff" }}>
+          {studentInitials}
+        </div>
         <div>
           <h2>
-            Alex Johnson <Pill tone="green">Verified profile</Pill>
+            {currentUser?.fullName || "Divya"} <Pill tone="green">Verified Student Identity</Pill>
           </h2>
-          <p>Computer Science Student · Bengaluru, India</p>
-          <div className="tags">
-            <Pill>Target: Software Engineer</Pill>
-            <Pill tone="orange">Intermediate preparation</Pill>
+          <p>
+            {currentUser?.studentProfile?.degree || "Computer Science Student"} · {currentUser?.studentProfile?.college || "Vellore Institute of Technology"} · {currentUser?.location || "Bengaluru, India"}
+          </p>
+          <div className="tags" style={{ marginTop: 6 }}>
+            <Pill tone="purple">Target: {currentUser?.studentProfile?.targetRole || "Junior Frontend Developer"}</Pill>
+            <Pill tone="orange">Readiness: {readiness || currentUser?.studentProfile?.currentReadiness || 68}/100</Pill>
+            <Pill tone="green">Recruiter Visible: {visibilitySetting}</Pill>
           </div>
         </div>
         <div className="passportStats">
           <span>
-            <b>12</b> Projects
+            <b>{submissions.length}</b> Verified Projects
           </span>
           <span>
-            <b>185</b> Problems solved
+            <b>4.6/5</b> Mentor Rating
           </span>
           <span>
-            <b>7.8</b> Profile strength
+            <b>8.4</b> Profile Strength
           </span>
         </div>
       </Card>
-      <div className="twoCol">
+
+      {/* Recruiter Visibility Bar */}
+      <Card style={{ marginBottom: 20, padding: "12px 18px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ShieldCheck size={16} color="#86e5b1" />
+            <b style={{ fontSize: 12 }}>Career Passport Recruiter Privacy Controls:</b>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["Private", "Mentors only", "Recruiters only", "Public preview"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={visibilitySetting === v ? "primary" : "secondary"}
+                style={{ fontSize: 11, padding: "4px 10px" }}
+                onClick={() => {
+                  setVisibilitySetting(v);
+                  careerApi.updatePassportVisibility(v).catch(() => {});
+                  act(`Passport visibility updated to "${v}"`);
+                }}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* Skills & Connected Accounts */}
+      <div className="twoCol" style={{ marginBottom: 20 }}>
         <Card>
           <h3>
-            Skills <small>Live confidence indicators</small>
+            Verified Skills <small>Live evidence confidence indicators</small>
           </h3>
           {skills.map(([name, value, level]: any) => (
-            <div className="skillbar" key={name}>
-              <div>
+            <div className="skillbar" key={name} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
                 <b>{name}</b>
-                <span>
-                  {level} · {value}%
-                </span>
+                <span style={{ color: "#a89bff" }}>{level}</span>
               </div>
-              <div>
-                <i style={{ width: value + "%" }} />
+              <div style={{ height: 6, background: "#1b1f2e", borderRadius: 3, overflow: "hidden" }}>
+                <i
+                  style={{
+                    display: "block",
+                    height: "100%",
+                    width: value + "%",
+                    background: "linear-gradient(90deg, #6353af, #86e5b1)",
+                  }}
+                />
               </div>
             </div>
           ))}
         </Card>
         <Card>
-          <h3>Connected profiles</h3>
+          <h3>Connected Work Profiles</h3>
           {[
-            ["GitHub", "12 repositories", "Connected"],
-            ["LeetCode", "185 problems solved", "Connected"],
-            ["LinkedIn", "Profile completed", "Connected"],
+            ["GitHub", "14 repositories · 88 commits", "Connected & Verified", "https://github.com/divya-dev"],
+            ["LeetCode", "185 problems solved · Top 18%", "Connected", "https://leetcode.com"],
+            ["LinkedIn", "Profile completed · 3 Endorsements", "Connected", "https://linkedin.com"],
           ].map((x) => (
-            <div className="connection" key={x[0]}>
-              <div className="connectionIcon">{x[0][0]}</div>
-              <span>
-                <b>{x[0]}</b>
-                <small>{x[1]}</small>
-              </span>
+            <div className="connection" key={x[0]} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, background: "#131520", padding: 10, borderRadius: 8 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div className="connectionIcon" style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "#252b3d", borderRadius: 6, fontSize: 12 }}>
+                  {x[0][0]}
+                </div>
+                <span>
+                  <b style={{ fontSize: 12, display: "block" }}>{x[0]}</b>
+                  <small style={{ color: "#8e96a8", fontSize: 10 }}>{x[1]}</small>
+                </span>
+              </div>
               <Pill tone="green">{x[2]}</Pill>
             </div>
           ))}
         </Card>
       </div>
-      <h2 className="sectionTitle">Featured projects</h2>
-      <div className="projectGrid">
-        {[
-          [
-            "AI Career Platform",
-            "React · Node.js · OpenAI",
-            "A guided career preparation platform built for students.",
-          ],
-          [
-            "Smart Attendance System",
-            "Python · Computer Vision",
-            "Face recognition attendance with real-time reporting.",
-          ],
-        ].map((x) => (
-          <Card key={x[0]}>
-            <Code2 className="purple" />
-            <h3>{x[0]}</h3>
-            <p>{x[2]}</p>
-            <div className="tags">
-              <Pill>{x[1]}</Pill>
+
+      {/* Verified Project Proof Packets Section */}
+      <div className="titleRow" style={{ marginTop: 10, marginBottom: 12 }}>
+        <div>
+          <p className="eyebrow">PROJECT STUDIO</p>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Verified Project Proof Packets</h2>
+        </div>
+        <span className="pill green">{submissions.length} Projects Tracked</span>
+      </div>
+
+      <div style={{ display: "grid", gap: 16 }}>
+        {submissions.map((p) => (
+          <Card key={p.id} style={{ background: "#141724", border: "1px solid #2d354d", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>{p.title}</h3>
+                  <Pill tone={p.status === "Verified" ? "green" : "orange"}>
+                    {p.status.toUpperCase()}
+                  </Pill>
+                </div>
+                <small style={{ color: "#8e96a8", fontSize: 11, marginTop: 4, display: "block" }}>
+                  Role: <b>{p.role}</b> · Submitted on {p.submittedAt ? new Date(p.submittedAt).toLocaleDateString() : "Recent"}
+                </small>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                {p.repoUrl && (
+                  <button
+                    className="secondary"
+                    style={{ fontSize: 11, padding: "5px 10px" }}
+                    onClick={() => window.open(p.repoUrl, "_blank")}
+                  >
+                    GitHub Repo <ArrowUpRight size={12} />
+                  </button>
+                )}
+                {p.liveDemoUrl && (
+                  <button
+                    className="secondary"
+                    style={{ fontSize: 11, padding: "5px 10px" }}
+                    onClick={() => window.open(p.liveDemoUrl, "_blank")}
+                  >
+                    Live Demo <ArrowUpRight size={12} />
+                  </button>
+                )}
+                {!p.review && (
+                  <button
+                    className="primary"
+                    style={{ fontSize: 11, padding: "5px 12px" }}
+                    onClick={() => setReviewModalOpen(p.id)}
+                  >
+                    <CheckCircle2 size={12} /> Add Mentor Review
+                  </button>
+                )}
+              </div>
             </div>
-            <button
-              className="textBtn"
-              onClick={() => act("Project details loaded")}
-            >
-              View project <ArrowUpRight size={15} />
-            </button>
+
+            <div style={{ background: "#10121c", padding: 12, borderRadius: 8, marginBottom: 12, fontSize: 11, color: "#cbd1e1", border: "1px solid #1f2538" }}>
+              <b style={{ color: "#f0edff", display: "block", marginBottom: 4 }}>Problem & Architectural Decisions:</b>
+              <p style={{ margin: "0 0 6px" }}>{p.problemStatement}</p>
+              <p style={{ margin: 0, color: "#8e96a8" }}><b>Implementation:</b> {p.decisionsNotes}</p>
+            </div>
+
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {p.requiredSkills?.map((s: string) => (
+                <span key={s} className="pill purple" style={{ fontSize: 10 }}>{s}</span>
+              ))}
+            </div>
+
+            {/* Mentor Review Section */}
+            {p.review && (
+              <div style={{ background: "linear-gradient(135deg, #1b1633, #121422)", border: "1px solid #4a3d7d", padding: 14, borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Award size={16} color="#86e5b1" />
+                    <div>
+                      <b style={{ fontSize: 12, color: "#f0edff" }}>Reviewed by {p.review.reviewerName}</b>
+                      <small style={{ color: "#8e96a8", display: "block", fontSize: 10 }}>
+                        {p.review.reviewerRole} ({p.review.organization})
+                      </small>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span className="pill green">VERIFIED EVIDENCE</span>
+                    <b style={{ display: "block", fontSize: 14, color: "#86e5b1", marginTop: 2 }}>
+                      ★ {p.review.overallScore} / 5.0
+                    </b>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 11, marginTop: 10 }}>
+                  <div style={{ background: "rgba(134, 229, 177, 0.08)", padding: 8, borderRadius: 6, border: "1px solid rgba(134, 229, 177, 0.2)" }}>
+                    <b style={{ color: "#86e5b1", display: "block", marginBottom: 2 }}>Strengths:</b>
+                    <p style={{ margin: 0, color: "#d2f7e4" }}>{p.review.strengthFeedback}</p>
+                  </div>
+                  <div style={{ background: "rgba(255, 209, 117, 0.08)", padding: 8, borderRadius: 6, border: "1px solid rgba(255, 209, 117, 0.2)" }}>
+                    <b style={{ color: "#ffd175", display: "block", marginBottom: 2 }}>Growth Opportunities:</b>
+                    <p style={{ margin: 0, color: "#ffe7b8" }}>{p.review.improvementFeedback}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         ))}
       </div>
+
+      {/* SUBMISSION MODAL */}
+      {submitModalOpen && (
+        <div className="profileModalOverlay" onClick={() => setSubmitModalOpen(false)}>
+          <div className="profileModal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="profileModalHeader">
+              <div>
+                <p className="eyebrow">PROJECT STUDIO SUBMISSION</p>
+                <h3 style={{ margin: 0, fontSize: 18 }}>Submit Project Proof Packet</h3>
+              </div>
+              <button className="icon" onClick={() => setSubmitModalOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProject} style={{ marginTop: 14 }}>
+              <div className="profileField" style={{ marginBottom: 10 }}>
+                <span>Project Title</span>
+                <input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} required />
+              </div>
+
+              <div className="profileField" style={{ marginBottom: 10 }}>
+                <span>Problem Statement</span>
+                <textarea
+                  rows={2}
+                  value={problemStatement}
+                  onChange={(e) => setProblemStatement(e.target.value)}
+                  style={{ width: "100%", background: "#161928", color: "#fff", border: "1px solid #282f42", borderRadius: 6, padding: 8, fontSize: 12 }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div className="profileField">
+                  <span>GitHub Repo URL</span>
+                  <input value={repoUrl} onChange={(e) => setRepoUrl(e.target.value)} placeholder="https://github.com/..." required />
+                </div>
+                <div className="profileField">
+                  <span>Live Demo URL</span>
+                  <input value={liveDemoUrl} onChange={(e) => setLiveDemoUrl(e.target.value)} placeholder="https://demo.app" />
+                </div>
+              </div>
+
+              <div className="profileField" style={{ marginBottom: 14 }}>
+                <span>Architectural Decisions & Tools</span>
+                <textarea
+                  rows={2}
+                  value={decisionsNotes}
+                  onChange={(e) => setDecisionsNotes(e.target.value)}
+                  style={{ width: "100%", background: "#161928", color: "#fff", border: "1px solid #282f42", borderRadius: 6, padding: 8, fontSize: 12 }}
+                  required
+                />
+              </div>
+
+              <div className="profileActions">
+                <button type="button" className="secondary" onClick={() => setSubmitModalOpen(false)}>
+                  Cancel
+                </button>
+                <button className="primary" type="submit">
+                  Submit Evidence for Review <ArrowRight size={14} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MENTOR REVIEW MODAL */}
+      {reviewModalOpen && (
+        <div className="profileModalOverlay" onClick={() => setReviewModalOpen(null)}>
+          <div className="profileModal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="profileModalHeader">
+              <div>
+                <p className="eyebrow">PEER & MENTOR EVALUATION</p>
+                <h3 style={{ margin: 0, fontSize: 18 }}>Record Verified Project Review</h3>
+              </div>
+              <button className="icon" onClick={() => setReviewModalOpen(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => handleAddReview(e, reviewModalOpen)} style={{ marginTop: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div className="profileField">
+                  <span>Reviewer Name</span>
+                  <input value={reviewerName} onChange={(e) => setReviewerName(e.target.value)} required />
+                </div>
+                <div className="profileField">
+                  <span>Reviewer Role / Org</span>
+                  <input value={reviewerRole} onChange={(e) => setReviewerRole(e.target.value)} required />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div className="profileField">
+                  <span>Technical Correctness (1–5): {correctnessScore}★</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={correctnessScore}
+                    onChange={(e) => setCorrectnessScore(Number(e.target.value))}
+                  />
+                </div>
+                <div className="profileField">
+                  <span>Code Quality & Tests (1–5): {qualityScore}★</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={5}
+                    value={qualityScore}
+                    onChange={(e) => setQualityScore(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="profileField" style={{ marginBottom: 10 }}>
+                <span>Strength Feedback</span>
+                <textarea
+                  rows={2}
+                  value={strengthFeedback}
+                  onChange={(e) => setStrengthFeedback(e.target.value)}
+                  style={{ width: "100%", background: "#161928", color: "#fff", border: "1px solid #282f42", borderRadius: 6, padding: 8, fontSize: 12 }}
+                  required
+                />
+              </div>
+
+              <div className="profileField" style={{ marginBottom: 14 }}>
+                <span>Growth & Improvement Areas</span>
+                <textarea
+                  rows={2}
+                  value={improvementFeedback}
+                  onChange={(e) => setImprovementFeedback(e.target.value)}
+                  style={{ width: "100%", background: "#161928", color: "#fff", border: "1px solid #282f42", borderRadius: 6, padding: 8, fontSize: 12 }}
+                  required
+                />
+              </div>
+
+              <div className="profileActions">
+                <button type="button" className="secondary" onClick={() => setReviewModalOpen(null)}>
+                  Cancel
+                </button>
+                <button className="primary" type="submit">
+                  Save Review & Verify Proof Packet <CheckCircle2 size={14} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
-function SkillTree({ selected, setSelected, act }: any) {
-  const nodes = [
-    ["Python", 85, "mastered", "prog"],
-    ["Java", 55, "progress", "prog"],
-    ["C++", 20, "gap", "prog"],
-    ["Arrays", 90, "mastered", "dsa"],
-    ["Linked Lists", 82, "mastered", "dsa"],
-    ["Trees", 60, "progress", "dsa"],
-    ["Graphs", 20, "locked", "dsa"],
-    ["DBMS", 60, "progress", "core"],
-    ["Operating Systems", 35, "gap", "core"],
-    ["Networks", 30, "gap", "core"],
-    ["Frontend", 75, "mastered", "dev"],
-    ["Backend", 62, "progress", "dev"],
-    ["Git", 78, "mastered", "dev"],
-    ["Communication", 72, "progress", "pro"],
-    ["Interview Skills", 58, "progress", "pro"],
-  ];
+interface SkillMissionDef {
+  skillName: string;
+  missionTitle: string;
+  whyItMatters: string;
+  difficulty: "Beginner" | "Intermediate" | "Advanced";
+  duration: string;
+  xpReward: number;
+  tasks: { id: string; label: string; completed: boolean }[];
+  learningResources: { title: string; type: string; page?: string }[];
+  status: "Not started" | "In progress" | "Submitted" | "Completed";
+  repoUrl?: string;
+  decisionNotes?: string;
+}
+
+function SkillMissionModal({
+  skill,
+  onClose,
+  onComplete,
+  act,
+  go,
+}: {
+  skill: { name: string; value: number; status: string };
+  onClose: () => void;
+  onComplete: (skillName: string, newProficiency: number, newStatus: string) => void;
+  act: (msg: string, inc?: number) => void;
+  go?: (page: string) => void;
+}) {
+  const [mission, setMission] = useState<SkillMissionDef>(() => {
+    const saved = localStorage.getItem(`careeros_mission_${skill.name}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+
+    const defaultMissions: Record<string, SkillMissionDef> = {
+      React: {
+        skillName: "React",
+        missionTitle: "Build a High-Performance Virtualized Task Management Grid",
+        whyItMatters:
+          "Target frontend roles heavily evaluate React reconciliation, custom hook encapsulation, and memory-safe DOM rendering.",
+        difficulty: "Intermediate",
+        duration: "3–4 hours",
+        xpReward: 150,
+        tasks: [
+          { id: "t-1", label: "Review React state management, memoization & reconciliation in Learning Hub", completed: true },
+          { id: "t-2", label: "Build a reusable data grid component with sorting and virtual scrolling", completed: false },
+          { id: "t-3", label: "Add loading skeletons, error boundary fallback, and empty states", completed: false },
+          { id: "t-4", label: "Write 6 Vitest unit tests verifying state mutations and keyboard navigation", completed: false },
+          { id: "t-5", label: "Document component props interface and architectural trade-offs", completed: false },
+        ],
+        learningResources: [
+          { title: "React Component Architecture & Hooks", type: "Lesson", page: "Learning Hub" },
+          { title: "Vitest Component Testing Patterns", type: "Guide", page: "Learning Hub" },
+        ],
+        status: "In progress",
+      },
+      Trees: {
+        skillName: "Trees",
+        missionTitle: "Master Binary Search Trees, Traversals & LCA Algorithms",
+        whyItMatters:
+          "Tree traversals (DFS, BFS, recursion) represent over 35% of technical coding assessments at top tier software firms.",
+        difficulty: "Intermediate",
+        duration: "2–3 hours",
+        xpReward: 150,
+        tasks: [
+          { id: "t-1", label: "Review Inorder, Preorder, and Level-Order traversal algorithms", completed: true },
+          { id: "t-2", label: "Solve Validate Binary Search Tree & Lowest Common Ancestor problems", completed: false },
+          { id: "t-3", label: "Implement height-balanced tree rotation checks", completed: false },
+          { id: "t-4", label: "Analyze time and space complexity with dry-run test cases", completed: false },
+        ],
+        learningResources: [
+          { title: "Tree Traversals & Recursion Deep Dive", type: "Lesson", page: "Learning Hub" },
+          { title: "Mock Technical Screening Arena", type: "Interactive", page: "Mock Arena" },
+        ],
+        status: "In progress",
+      },
+      Python: {
+        skillName: "Python",
+        missionTitle: "Build an Async Data Ingestion Pipeline with Type Safety",
+        whyItMatters:
+          "Data engineering and backend systems require idiomatic Python generators, type hints, and asynchronous IO processing.",
+        difficulty: "Intermediate",
+        duration: "3–4 hours",
+        xpReward: 150,
+        tasks: [
+          { id: "t-1", label: "Review Python Generators, Decorators, and Asyncio", completed: true },
+          { id: "t-2", label: "Implement streaming data parser with Pydantic validation", completed: false },
+          { id: "t-3", label: "Handle dirty datasets with automated schema transformation", completed: false },
+          { id: "t-4", label: "Write Pytest suite with 80%+ branch coverage", completed: false },
+        ],
+        learningResources: [
+          { title: "Python Advanced Idioms & Async", type: "Lesson", page: "Learning Hub" },
+        ],
+        status: "In progress",
+      },
+    };
+
+    return (
+      defaultMissions[skill.name] || {
+        skillName: skill.name,
+        missionTitle: `Build a Verified Production Artifact in ${skill.name}`,
+        whyItMatters: `Mastering ${skill.name} eliminates a critical gap on your Career Passport and strengthens recruiter placement signal.`,
+        difficulty: "Intermediate",
+        duration: "2–4 hours",
+        xpReward: 150,
+        tasks: [
+          { id: "t-1", label: `Review ${skill.name} core principles and design patterns`, completed: true },
+          { id: "t-2", label: `Build a runnable demonstration project applying ${skill.name}`, completed: false },
+          { id: "t-3", label: "Add automated tests verifying edge cases and error handling", completed: false },
+          { id: "t-4", label: "Submit repository proof and explain technical decisions", completed: false },
+        ],
+        learningResources: [
+          { title: `${skill.name} Core Concepts & Best Practices`, type: "Lesson", page: "Learning Hub" },
+          { title: "Diagnostic Assessment Quiz", type: "Assessment", page: "Command Center" },
+        ],
+        status: "In progress",
+      }
+    );
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [repoUrl, setRepoUrl] = useState(mission.repoUrl || `https://github.com/divya-dev/${skill.name.toLowerCase()}-mission`);
+  const [decisionNotes, setDecisionNotes] = useState(
+    mission.decisionNotes || "Implemented clean modular architecture, memoized calculation cycles, and verified edge cases with unit tests."
+  );
+
+  const completedTasksCount = mission.tasks.filter((t) => t.completed).length;
+  const totalTasks = mission.tasks.length;
+  const progressPct = Math.round((completedTasksCount / totalTasks) * 100);
+
+  const handleToggleTask = (taskId: string) => {
+    const updatedTasks = mission.tasks.map((t) =>
+      t.id === taskId ? { ...t, completed: !t.completed } : t
+    );
+    const allDone = updatedTasks.every((t) => t.completed);
+    const updatedMission: SkillMissionDef = {
+      ...mission,
+      tasks: updatedTasks,
+      status: allDone ? "Submitted" : "In progress",
+    };
+    setMission(updatedMission);
+    localStorage.setItem(`careeros_mission_${skill.name}`, JSON.stringify(updatedMission));
+    act(`Task updated: ${completedTasksCount + 1}/${totalTasks} completed`, 10);
+  };
+
+  const handleStartMission = () => {
+    const updated: SkillMissionDef = { ...mission, status: "In progress" };
+    setMission(updated);
+    localStorage.setItem(`careeros_mission_${skill.name}`, JSON.stringify(updated));
+    act(`Skill mission for ${skill.name} started successfully.`, 20);
+  };
+
+  const handleSubmitMission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await careerApi.completeSkillMission(skill.name);
+    } catch {
+      // Local fallback
+    }
+
+    const newProficiency = Math.min(100, skill.value + 22);
+    const newStatus = newProficiency >= 75 ? "mastered" : "progress";
+
+    const completedMission: SkillMissionDef = {
+      ...mission,
+      status: "Completed",
+      repoUrl,
+      decisionNotes,
+      tasks: mission.tasks.map((t) => ({ ...t, completed: true })),
+    };
+
+    setMission(completedMission);
+    localStorage.setItem(`careeros_mission_${skill.name}`, JSON.stringify(completedMission));
+
+    setIsSubmitting(false);
+    act(`Skill mission for ${skill.name} completed! (+150 XP, +3 Readiness)`, 150);
+    onComplete(skill.name, newProficiency, newStatus);
+  };
+
+  return (
+    <div className="profileModalOverlay" onClick={onClose}>
+      <div
+        className="profileModal"
+        style={{ width: "min(680px, calc(100vw - 32px))", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="profileModalHeader" style={{ borderBottom: "1px solid #2c3344", paddingBottom: 14 }}>
+          <div>
+            <p className="eyebrow" style={{ color: "#a597ff" }}>
+              SKILL MISSION · {mission.difficulty.toUpperCase()} · {mission.duration}
+            </p>
+            <h2 style={{ fontSize: 22, margin: "4px 0 0", color: "#f0edff" }}>{mission.missionTitle}</h2>
+          </div>
+          <button type="button" className="icon" onClick={onClose} aria-label="Close modal">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: "16px 0" }}>
+          {/* Why it Matters Banner */}
+          <div
+            style={{
+              background: "#181b28",
+              border: "1px solid #333b52",
+              borderRadius: 10,
+              padding: "12px 16px",
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <b style={{ color: "#8fe3b6", fontSize: 11, letterSpacing: "0.5px" }}>
+                ✓ WHY THIS SKILL MATTERS
+              </b>
+              <span
+                className={`pill ${
+                  mission.status === "Completed"
+                    ? "green"
+                    : mission.status === "In progress"
+                    ? "orange"
+                    : "purple"
+                }`}
+                style={{ fontSize: 9 }}
+              >
+                {mission.status}
+              </span>
+            </div>
+            <p style={{ fontSize: 12.5, color: "#cbd2e4", margin: "6px 0 0", lineHeight: 1.5 }}>
+              {mission.whyItMatters}
+            </p>
+          </div>
+
+          {/* Progress Bar */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
+              <span style={{ color: "#9aa2b5", fontWeight: 600 }}>
+                Mission Tasks ({completedTasksCount}/{totalTasks} Completed)
+              </span>
+              <b style={{ color: "#a899ff" }}>{progressPct}%</b>
+            </div>
+            <div
+              style={{
+                height: 8,
+                background: "#252b3d",
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${progressPct}%`,
+                  background: "linear-gradient(90deg, #7b6be2, #47d692)",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Interactive Tasks Checklist */}
+          <div style={{ marginBottom: 18 }}>
+            <h4 style={{ margin: "0 0 10px", fontSize: 13, color: "#eeeaff" }}>Required Milestones:</h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {mission.tasks.map((task) => (
+                <div
+                  key={task.id}
+                  onClick={() => handleToggleTask(task.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 12,
+                    padding: "10px 14px",
+                    background: task.completed ? "rgba(22, 60, 42, 0.35)" : "#161924",
+                    border: `1px solid ${task.completed ? "#2d694b" : "#2a3043"}`,
+                    borderRadius: 9,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 5,
+                      border: `1px solid ${task.completed ? "#4dbd83" : "#4f576d"}`,
+                      background: task.completed ? "#1b4d35" : "transparent",
+                      display: "grid",
+                      placeItems: "center",
+                      marginTop: 2,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {task.completed && <Check size={13} color="#75e2a7" />}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      color: task.completed ? "#9fe0bc" : "#e0e3ed",
+                      textDecoration: task.completed ? "line-through" : "none",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {task.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Learning Resources */}
+          {mission.learningResources && mission.learningResources.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#eeeaff" }}>Recommended Prep Resources:</h4>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {mission.learningResources.map((res, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="secondary"
+                    style={{ fontSize: 11, padding: "7px 12px", background: "#1a1e2d" }}
+                    onClick={() => {
+                      if (go && res.page) {
+                        onClose();
+                        go(res.page);
+                      } else {
+                        act(`Opened resource: ${res.title}`);
+                      }
+                    }}
+                  >
+                    <BookOpen size={13} style={{ marginRight: 4 }} />
+                    {res.title} ({res.type})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Artifact submission fields */}
+          <form onSubmit={handleSubmitMission}>
+            <div className="profileFields" style={{ marginBottom: 18 }}>
+              <label className="profileField">
+                <span>Proof of Work / GitHub Repository Link</span>
+                <input
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  placeholder="https://github.com/your-username/project-repo"
+                />
+              </label>
+              <label className="profileField">
+                <span>Technical Decisions & Complexity Notes</span>
+                <input
+                  value={decisionNotes}
+                  onChange={(e) => setDecisionNotes(e.target.value)}
+                  placeholder="Explain trade-offs, algorithms used, and edge cases handled..."
+                />
+              </label>
+            </div>
+
+            <div className="profileActions" style={{ marginTop: 14 }}>
+              <button type="button" className="secondary" onClick={onClose}>
+                Close
+              </button>
+              {mission.status === "Not started" ? (
+                <button type="button" className="primary" onClick={handleStartMission}>
+                  <Sparkles size={14} /> Start Mission
+                </button>
+              ) : mission.status === "Completed" ? (
+                <button type="button" className="primary" disabled style={{ background: "#275a41", color: "#86e5b1" }}>
+                  <Check size={14} /> Mission Completed (+150 XP)
+                </button>
+              ) : (
+                <button type="submit" className="primary" disabled={isSubmitting}>
+                  <Trophy size={14} /> {isSubmitting ? "Submitting..." : "Submit Mission (+150 XP)"}
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillTree({ selected, setSelected, act, go }: any) {
+  const [nodes, setNodes] = useState<any[]>(() => {
+    const saved = localStorage.getItem("careeros_skill_nodes");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return [
+      ["Python", 85, "mastered", "prog"],
+      ["Java", 55, "progress", "prog"],
+      ["C++", 20, "gap", "prog"],
+      ["Arrays", 90, "mastered", "dsa"],
+      ["Linked Lists", 82, "mastered", "dsa"],
+      ["Trees", 60, "progress", "dsa"],
+      ["Graphs", 20, "locked", "dsa"],
+      ["DBMS", 60, "progress", "core"],
+      ["Operating Systems", 35, "gap", "core"],
+      ["Networks", 30, "gap", "core"],
+      ["Frontend", 75, "mastered", "dev"],
+      ["Backend", 62, "progress", "dev"],
+      ["Git", 78, "mastered", "dev"],
+      ["Communication", 72, "progress", "pro"],
+      ["Interview Skills", 58, "progress", "pro"],
+    ];
+  });
+
+  const [activeMissionSkill, setActiveMissionSkill] = useState<{
+    name: string;
+    value: number;
+    status: string;
+  } | null>(null);
+
+  const handleOpenMission = (skillItem: any) => {
+    setActiveMissionSkill(skillItem);
+    act(`Starting skill mission for ${skillItem.name}...`);
+  };
+
+  const handleMissionComplete = (skillName: string, newProficiency: number, newStatus: string) => {
+    const updatedNodes = nodes.map((n) =>
+      n[0] === skillName ? [n[0], newProficiency, newStatus, n[3]] : n
+    );
+    setNodes(updatedNodes);
+    localStorage.setItem("careeros_skill_nodes", JSON.stringify(updatedNodes));
+
+    if (selected && selected.name === skillName) {
+      setSelected({ name: skillName, value: newProficiency, status: newStatus });
+    }
+    setActiveMissionSkill(null);
+  };
+
   return (
     <>
       <div className="titleRow">
@@ -1083,8 +2501,8 @@ function SkillTree({ selected, setSelected, act }: any) {
                   {selected.status === "gap"
                     ? "Skill gap"
                     : selected.status === "progress"
-                      ? "In progress"
-                      : "Mastered"}
+                    ? "In progress"
+                    : "Mastered"}
                 </span>
               </div>
               <p>
@@ -1093,21 +2511,21 @@ function SkillTree({ selected, setSelected, act }: any) {
               </p>
               <h4>Recommended mission</h4>
               <ul>
-                <li>Learn the key concepts</li>
-                <li>Solve 5 practice problems</li>
-                <li>Take a mini assessment</li>
+                <li>Review conceptual architecture patterns</li>
+                <li>Solve hands-on practice problems</li>
+                <li>Submit code artifact and automated tests</li>
               </ul>
               <div className="reward">
                 <Trophy size={18} />
                 <span>
-                  Complete assessment <b>+150 XP</b>
+                  Complete mission <b>+150 XP</b>
                 </span>
               </div>
               <button
                 className="primary full"
-                onClick={() => act(`${selected.name} mission started`, 150)}
+                onClick={() => handleOpenMission(selected)}
               >
-                Start skill mission
+                <Sparkles size={14} style={{ marginRight: 6 }} /> Start skill mission
               </button>
             </>
           ) : (
@@ -1124,6 +2542,16 @@ function SkillTree({ selected, setSelected, act }: any) {
           )}
         </Card>
       </div>
+
+      {activeMissionSkill && (
+        <SkillMissionModal
+          skill={activeMissionSkill}
+          onClose={() => setActiveMissionSkill(null)}
+          onComplete={handleMissionComplete}
+          act={act}
+          go={go}
+        />
+      )}
     </>
   );
 }
@@ -1221,235 +2649,249 @@ function Roadmap({ go, act }: any) {
   );
 }
 function Learning({ act }: any) {
-  const resources = [
-    [
-      "Video course",
-      "Binary Trees Fundamentals",
-      "45 min",
-      "Start learning",
-      "https://www.youtube.com/results?search_query=binary+tree+data+structure+for+beginners",
-    ],
-    [
-      "Article",
-      "Tree Traversal Explained",
-      "15 min",
-      "Read",
-      "https://www.youtube.com/results?search_query=tree+traversal+explained",
-    ],
-    [
-      "Documentation",
-      "Tree Data Structures",
-      "20 min",
-      "Explore",
-      "https://www.youtube.com/results?search_query=tree+data+structure+youtube",
-    ],
-  ];
-  const assessmentQuestions = [
+  const [lessons, setLessons] = useState<any[]>([
     {
-      question:
-        "What is the maximum number of nodes in a binary tree of height h?",
-      answer: "2^(h+1)-1",
+      id: "lesson-fe-1",
+      title: "JavaScript Async Patterns & Promises in Depth",
+      skill: "JavaScript / TypeScript",
+      duration: "20 min",
+      xpReward: 50,
+      completed: true,
+      content:
+        "Mastering the JavaScript Event Loop: Microtasks (Promises, queueMicrotask) take strict priority over Macrotasks (setTimeout, setInterval). When building asynchronous frontend interfaces, always handle errors with try/catch blocks and use Promise.allSettled() when fetching parallel resources where partial success is acceptable.",
+      exercise: {
+        question: "Which Promise static method waits for all promises to settle regardless of outcome?",
+        options: ["Promise.race()", "Promise.allSettled()", "Promise.any()"],
+        correctIndex: 1,
+        explanation: "Promise.allSettled() returns outcome objects with status 'fulfilled' or 'rejected' for every promise without short-circuiting.",
+      },
     },
     {
-      question:
-        "Which traversal visits the left subtree, then the root, then the right subtree?",
-      answer: "In-order",
+      id: "lesson-fe-2",
+      title: "React Render Optimization & Memoization",
+      skill: "React.js",
+      duration: "25 min",
+      xpReward: 50,
+      completed: false,
+      content:
+        "React re-renders components whenever state or parent props change. To prevent expensive tree recalculations: (1) Use React.memo for pure display components, (2) Wrap heavy transformations in useMemo with proper dependency arrays, and (3) Use useCallback for stable function handler references passed to memoized children.",
+      exercise: {
+        question: "What is the primary purpose of the useCallback hook in React?",
+        options: [
+          "To cache expensive calculation return values",
+          "To preserve function reference identity across component renders",
+          "To fetch data automatically on mount",
+        ],
+        correctIndex: 1,
+        explanation: "useCallback caches function definitions between renders, ensuring child components relying on reference equality do not re-render unnecessarily.",
+      },
     },
     {
-      question: "A binary tree node can have at most how many children?",
-      answer: "2",
+      id: "lesson-fe-3",
+      title: "Automated Component Testing with Vitest & React Testing Library",
+      skill: "Testing & Vitest",
+      duration: "30 min",
+      xpReward: 75,
+      completed: false,
+      content:
+        "Test behavior rather than implementation details. Use getByRole to find elements the way screen readers do, mock network endpoints using MSW or vi.fn(), and assert expected visual feedback across loading, error, and success states.",
+      exercise: {
+        question: "Which RTL query is the recommended standard for selecting interactive buttons?",
+        options: ['getByRole("button", { name: /submit/i })', 'getByTestId("submit-btn")', 'querySelector("button")'],
+        correctIndex: 0,
+        explanation: "getByRole aligns with accessibility trees and encourages accessible semantic HTML structure.",
+      },
     },
-    {
-      question:
-        "What is the time complexity of a DFS traversal on a binary tree with n nodes?",
-      answer: "O(n)",
-    },
-  ];
-  const challengeDetails: any = {
-    "Invert Binary Tree":
-      "Given the root of a binary tree, invert it and return the root of the inverted tree. You must swap left and right children recursively or iteratively.",
-    "Binary Tree Level Order Traversal":
-      "Return the level-order traversal of a binary tree from top to bottom, left to right. Use a queue to process each node layer by layer.",
-    "Serialize and Deserialize Binary Tree":
-      "Design an algorithm to serialize a binary tree into a string and deserialize it back into the original structure. Preserve structure and null markers.",
+  ]);
+
+  const [activeLesson, setActiveLesson] = useState<any | null>(null);
+  const [selectedExerciseOption, setSelectedExerciseOption] = useState<number | null>(null);
+  const [exerciseFeedback, setExerciseFeedback] = useState<{ correct: boolean; text: string } | null>(null);
+
+  const completedCount = lessons.filter((l) => l.completed).length;
+  const progressPercent = Math.round((completedCount / lessons.length) * 100);
+
+  const handleOpenLesson = (lesson: any) => {
+    setActiveLesson(lesson);
+    setSelectedExerciseOption(null);
+    setExerciseFeedback(null);
+    act(`Opened lesson: ${lesson.title}`);
   };
-  const challenges = [
-    ["Easy", "Invert Binary Tree", "+40 XP"],
-    ["Medium", "Binary Tree Level Order Traversal", "+75 XP"],
-    ["Hard", "Serialize and Deserialize Binary Tree", "+120 XP"],
-  ];
-  const [showAssessment, setShowAssessment] = useState(false);
-  const [answers, setAnswers] = useState<string[]>(
-    Array(assessmentQuestions.length).fill(""),
-  );
-  const [submitted, setSubmitted] = useState(false);
-  const [selectedChallenge, setSelectedChallenge] = useState<string | null>(
-    null,
-  );
-  const openResource = (title: string, url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-    act(`${title} opened in YouTube`);
-  };
-  const onAnswerChange = (index: number, value: string) => {
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
+
+  const handleVerifyExercise = () => {
+    if (selectedExerciseOption === null || !activeLesson) return;
+    const isCorrect = selectedExerciseOption === activeLesson.exercise.correctIndex;
+    setExerciseFeedback({
+      correct: isCorrect,
+      text: isCorrect
+        ? `✓ Correct! ${activeLesson.exercise.explanation}`
+        : `✗ Not quite. ${activeLesson.exercise.explanation}`,
     });
-    if (submitted) setSubmitted(false);
   };
-  const score = answers.filter(
-    (answer, index) =>
-      answer.trim().toLowerCase() ===
-      assessmentQuestions[index].answer.toLowerCase(),
-  ).length;
-  const startChallenge = (challengeName: string) => {
-    setSelectedChallenge(challengeName);
-    act(`${challengeName} started`, 80);
+
+  const handleCompleteLesson = async (lessonId: string) => {
+    setLessons((prev) =>
+      prev.map((l) => (l.id === lessonId ? { ...l, completed: true } : l)),
+    );
+    act(`Lesson completed! (+50 XP)`, 50);
+    setActiveLesson(null);
+
+    try {
+      await careerApi.completeLearningLesson(lessonId);
+    } catch {
+      // Local fallback
+    }
   };
+
   return (
     <>
       <div className="titleRow">
         <div>
           <p className="eyebrow">LEARNING HUB</p>
-          <h1>Turn knowledge into confidence</h1>
+          <h1>Target Role Mastery & Skill Bridging</h1>
           <p className="muted">
-            Your current topic: <b>Trees</b>
+            Interactive modular lessons mapped directly to your diagnostic gaps and employer requirements.
           </p>
         </div>
-        <Pill tone="orange">60% topic progress</Pill>
+        <Pill tone={progressPercent >= 70 ? "green" : "orange"}>
+          {progressPercent}% Path Progress ({completedCount}/{lessons.length} Completed)
+        </Pill>
       </div>
-      <div className="flow">
-        <b>LEARN</b>
+
+      <div className="flow" style={{ marginBottom: 20 }}>
+        <b>1. DIAGNOSTIC GAPS</b>
         <ChevronRight />
-        <b>PRACTICE</b>
+        <b>2. CONCEPT LESSONS</b>
         <ChevronRight />
-        <b>ASSESS</b>
+        <b>3. CODE EXERCISES</b>
         <ChevronRight />
-        <b>INTERVIEW</b>
+        <b>4. PROJECT APPLICATION</b>
       </div>
-      <h2 className="sectionTitle">Learn</h2>
-      <div className="resourceGrid">
-        {resources.map((r, i) => (
-          <Card key={r[1]}>
-            <div className="resourceIcon">
-              {i === 0 ? "▶" : i === 1 ? "✦" : "▤"}
+
+      <h2 className="sectionTitle">Role-Specific Curriculum Modules</h2>
+      <div className="resourceGrid" style={{ marginBottom: 24 }}>
+        {lessons.map((lesson, idx) => (
+          <Card key={lesson.id} style={{ background: lesson.completed ? "rgba(134,229,177,0.05)" : "#131520", border: lesson.completed ? "1px solid #334d42" : "1px solid #282f42" }}>
+            <div className="cardTop">
+              <span className="pill purple" style={{ fontSize: 9 }}>{lesson.skill}</span>
+              {lesson.completed ? (
+                <span className="pill green" style={{ fontSize: 9 }}><Check size={10} /> COMPLETED</span>
+              ) : (
+                <span className="pill orange" style={{ fontSize: 9 }}>+{lesson.xpReward} XP</span>
+              )}
             </div>
-            <Pill>{r[0]}</Pill>
-            <h3>{r[1]}</h3>
-            <p>{r[2]} · Beginner-friendly</p>
+
+            <h3 style={{ fontSize: 15, margin: "8px 0 4px" }}>{lesson.title}</h3>
+            <p style={{ fontSize: 11, color: "#8e96a8", marginBottom: 12 }}>
+              {lesson.duration} · Self-paced conceptual deep-dive & quiz
+            </p>
+
             <button
-              className="secondary full"
-              onClick={() => openResource(r[1], r[4])}
+              className={lesson.completed ? "secondary full" : "primary full"}
+              style={{ fontSize: 11 }}
+              onClick={() => handleOpenLesson(lesson)}
             >
-              {r[3]}
+              {lesson.completed ? "Review Lesson & Notes" : "Start Interactive Lesson"} <ArrowRight size={12} />
             </button>
           </Card>
         ))}
       </div>
-      <div className="twoCol">
-        <Card>
-          <h2>Practice challenges</h2>
-          {challenges.map((x: any) => (
-            <div className="challenge" key={x[1]}>
-              <Pill
-                tone={
-                  x[0] === "Easy"
-                    ? "green"
-                    : x[0] === "Medium"
-                      ? "orange"
-                      : "red"
-                }
-              >
-                {x[0]}
-              </Pill>
-              <b>{x[1]}</b>
-              <span>{x[2]}</span>
-              <button
-                className="icon"
-                onClick={() => {
-                  setSelectedChallenge(x[1]);
-                  act(`${x[1]} challenge opened`);
-                }}
-              >
-                <ChevronRight />
+
+      {/* LESSON READER MODAL */}
+      {activeLesson && (
+        <div className="profileModalOverlay" onClick={() => setActiveLesson(null)}>
+          <div className="profileModal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="profileModalHeader">
+              <div>
+                <p className="eyebrow">LEARNING HUB INTERACTIVE MODULE</p>
+                <h2 style={{ fontSize: 18, margin: "4px 0" }}>{activeLesson.title}</h2>
+                <small style={{ color: "#a89bff" }}>Skill Focus: <b>{activeLesson.skill}</b></small>
+              </div>
+              <button className="icon" onClick={() => setActiveLesson(null)}>
+                <X size={16} />
               </button>
             </div>
-          ))}
-        </Card>
-        {selectedChallenge && (
-          <Card className="assessment">
-            <Pill>CHALLENGE</Pill>
-            <h2>{selectedChallenge}</h2>
-            <p>{challengeDetails[selectedChallenge]}</p>
-            <button
-              className="primary full"
-              onClick={() => startChallenge(selectedChallenge)}
-            >
-              Start challenge
-            </button>
-          </Card>
-        )}
-        <Card className="assessment">
-          <Pill>ASSESS</Pill>
-          <h2>Quick assessment</h2>
-          <p>10 questions · 10 minutes · unlock Graphs at 70%</p>
-          {!showAssessment ? (
-            <button
-              className="primary full"
-              onClick={() => {
-                setShowAssessment(true);
-                act("Assessment started", 100);
-              }}
-            >
-              Take assessment
-            </button>
-          ) : (
-            <div className="assessmentQuestions">
-              {assessmentQuestions.map((item, index) => (
-                <label className="profileField" key={item.question}>
-                  <span>
-                    {index + 1}. {item.question}
+
+            {/* Concept Content */}
+            <div style={{ background: "#111422", padding: 14, borderRadius: 8, margin: "14px 0", fontSize: 12, lineHeight: 1.6, border: "1px solid #232a3e" }}>
+              <b style={{ color: "#f0edff", display: "block", marginBottom: 6 }}>Key Concept Breakdown:</b>
+              <p style={{ margin: 0, color: "#c6cbde" }}>{activeLesson.content}</p>
+            </div>
+
+            {/* Practice Exercise */}
+            <div style={{ background: "#151828", padding: 14, borderRadius: 8, marginBottom: 14, border: "1px solid #2c334d" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <b style={{ fontSize: 12, color: "#f0edff" }}>Check Your Understanding:</b>
+                <span className="pill orange" style={{ fontSize: 9 }}>Knowledge Check</span>
+              </div>
+              <p style={{ fontSize: 11, margin: "0 0 10px", color: "#d2d6e6" }}>
+                {activeLesson.exercise.question}
+              </p>
+
+              <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
+                {activeLesson.exercise.options.map((opt: string, idx: number) => (
+                  <label
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: selectedExerciseOption === idx ? "rgba(139,124,255,0.15)" : "#1a1d2e",
+                      border: selectedExerciseOption === idx ? "1px solid #8777f2" : "1px solid #282f42",
+                      padding: "7px 10px",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="exercise"
+                      checked={selectedExerciseOption === idx}
+                      onChange={() => {
+                        setSelectedExerciseOption(idx);
+                        setExerciseFeedback(null);
+                      }}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ fontSize: 11, padding: "5px 12px" }}
+                  onClick={handleVerifyExercise}
+                  disabled={selectedExerciseOption === null}
+                >
+                  Verify Answer
+                </button>
+                {exerciseFeedback && (
+                  <span style={{ fontSize: 11, color: exerciseFeedback.correct ? "#86e5b1" : "#ffd175" }}>
+                    {exerciseFeedback.text}
                   </span>
-                  <input
-                    value={answers[index]}
-                    onChange={(e) => onAnswerChange(index, e.target.value)}
-                    placeholder="Type your answer"
-                  />
-                </label>
-              ))}
-              <button
-                className="primary full"
-                onClick={() => {
-                  setSubmitted(true);
-                  act("Assessment completed", 120);
-                }}
-              >
-                Submit answers
-              </button>
-              {submitted && (
-                <div className="assessmentResult">
-                  <b>
-                    Score: {score}/{assessmentQuestions.length}
-                  </b>
-                  <p>
-                    {score >= 3
-                      ? "Nice work — your tree fundamentals are strong."
-                      : "A quick review on binary trees will help you improve."}
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          )}
-          <div className="interviewPrompt">
-            <Mic2 />
-            <span>
-              <b>Interview challenge</b> Explain the difference between a Binary
-              Tree and BST.
-            </span>
+
+            <div className="profileActions">
+              <button type="button" className="secondary" onClick={() => setActiveLesson(null)}>
+                Close
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => handleCompleteLesson(activeLesson.id)}
+                disabled={activeLesson.completed}
+              >
+                {activeLesson.completed ? "Already Completed ✓" : "Mark Complete & Claim 50 XP"} <CheckCircle2 size={14} />
+              </button>
+            </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      )}
     </>
   );
 }

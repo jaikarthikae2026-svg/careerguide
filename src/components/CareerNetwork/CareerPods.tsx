@@ -28,6 +28,7 @@ import {
   PodDiscussionPost,
   PodTask,
 } from '../../data/networkData';
+import { careerApi } from '../../api';
 
 interface CareerPodsProps {
   pods: CareerPod[];
@@ -107,6 +108,7 @@ export const CareerPods: React.FC<CareerPodsProps> = ({
         if (t.id === taskId) {
           const nextStatus = t.status === 'COMPLETED' ? 'IN_PROGRESS' : 'COMPLETED';
           if (nextStatus === 'COMPLETED') {
+            careerApi.completePodTask(currentPod.id, taskId).catch(() => {});
             act(`Task completed: ${t.title}`, t.xpReward);
           }
           return { ...t, status: nextStatus };
@@ -147,12 +149,20 @@ export const CareerPods: React.FC<CareerPodsProps> = ({
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewingItem) return;
+    careerApi
+      .submitPeerReview(currentPod.id, {
+        targetSubmissionId: reviewingItem.id,
+        scores: rubricScores,
+        feedbackGood,
+        feedbackImprove,
+      })
+      .catch(() => {});
     setReviewedItems([...reviewedItems, reviewingItem.id]);
     setReviewingItem(null);
     setFeedbackGood('');
     setFeedbackImprove('');
     setFeedbackQuestion('');
-    act(`Peer review submitted for ${reviewingItem.authorName}! Badge progress updated.`, 60);
+    act(`Peer review submitted for ${reviewingItem.authorName}! Badge progress updated. (+80 XP)`, 80);
   };
 
   return (

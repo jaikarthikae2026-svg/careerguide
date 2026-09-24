@@ -1,0 +1,603 @@
+// CareerOS Relational Database Schema
+// Compatible with SQLite locally and PostgreSQL in production / Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// -------------------------------------------------------------
+// 1. PROFILES & USER AUTHENTICATION
+// -------------------------------------------------------------
+
+model Profile {
+  id               String          @id @default(uuid())
+  email            String          @unique
+  passwordHash     String
+  role             String          @default("student") // student | mentor | alumni | recruiter | employer_admin | career_coach | platform_admin
+  fullName         String
+  avatarUrl        String?
+  phone            String?
+  location         String?
+  isEmailVerified  Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  studentProfile   StudentProfile?
+  mentorProfile    Mentor?
+  podMemberships   PodMember[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+  reviewsGiven     ProjectReview[]
+}
+
+model StudentProfile {
+  id                      String          @id @default(uuid())
+  profileId               String          @unique
+  profile                 Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  college                 String          @default("Vellore Institute of Technology")
+  degree                  String          @default("B.Tech in Computer Science")
+  graduationYear          Int             @default(2026)
+  targetRole              String          @default("Junior Frontend Developer")
+  targetIndustry          String          @default("Fintech / SaaS")
+  preferredLanguage       String          @default("English")
+  weeklyAvailabilityHours Int             @default(15)
+  workModePreference      String          @default("Hybrid")
+  financialConstraints    Boolean         @default(false)
+  resumeUrl               String?
+  portfolioUrl            String?
+  githubUrl               String?
+  currentReadiness        Int             @default(69)
+  currentLevel            Int             @default(8)
+  xp                      Int             @default(1650)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  careerGoals             CareerGoal[]
+  skillProgress           SkillProgress[]
+  assessmentAttempts      AssessmentAttempt[]
+  learningProgress        LearningProgress[]
+  projectEvidence         ProjectEvidence[]
+  mentorRequests          MentorRequest[]
+  microApplications       MicroInternshipApplication[]
+  jobApplications         JobApplication[]
+  rejectionInsights       RejectionInsight[]
+  improvementPlans        ImprovementPlan[]
+  workReadyAttempts       WorkReadyAttempt[]
+  careerPassport          CareerPassport?
+  resumeVersions          ResumeVersion[]
+  hiddenStrengths         HiddenStrength[]
+}
+
+model CareerGoal {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  targetRole       String
+  targetCompany    String?
+  timelineWeeks    Int            @default(12)
+  priority         String         @default("HIGH")
+  status           String         @default("ACTIVE")
+  createdAt        DateTime       @default(now())
+}
+
+// -------------------------------------------------------------
+// 2. SKILLS, ASSESSMENTS & LEARNING HUB
+// -------------------------------------------------------------
+
+model Skill {
+  id                 String             @id
+  name               String
+  category           String
+  description        String
+  maxLevel           Int                @default(5)
+  createdAt          DateTime           @default(now())
+
+  skillProgress      SkillProgress[]
+  skillRequirements  SkillRequirement[]
+  assessments        Assessment[]
+  learningModules    LearningModule[]
+}
+
+model SkillProgress {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  skillId          String
+  skill            Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  proficiency      Int            @default(40)
+  status           String         @default("IN_PROGRESS")
+  verifiedAt       DateTime?
+  lastUpdated      DateTime       @default(now())
+
+  @@unique([studentProfileId, skillId])
+}
+
+model SkillRequirement {
+  id             String @id @default(uuid())
+  targetRole     String
+  skillId        String
+  skill          Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  minProficiency Int    @default(70)
+  importance     Int    @default(8)
+}
+
+model Assessment {
+  id              String               @id @default(uuid())
+  title           String
+  skillId         String
+  skill           Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  difficulty      String               @default("Intermediate")
+  durationMinutes Int                  @default(20)
+  passingScore    Int                  @default(75)
+
+  questions       AssessmentQuestion[]
+  attempts        AssessmentAttempt[]
+}
+
+model AssessmentQuestion {
+  id                 String     @id @default(uuid())
+  assessmentId       String
+  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionText       String
+  optionsJson        String
+  correctOptionIndex Int
+  explanation        String
+}
+
+model AssessmentAttempt {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  assessmentId     String
+  assessment       Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  score            Int
+  passed           Boolean
+  answersJson      String
+  createdAt        DateTime       @default(now())
+}
+
+model LearningModule {
+  id               String             @id @default(uuid())
+  title            String
+  skillId          String
+  skill            Skill              @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  category         String
+  estimatedMinutes Int                @default(30)
+  contentMarkdown  String
+
+  progressRecords  LearningProgress[]
+}
+
+model LearningProgress {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  moduleId         String
+  learningModule   LearningModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  status           String         @default("NOT_STARTED")
+  completedAt      DateTime?
+}
+
+// -------------------------------------------------------------
+// 3. PROJECTS & EVIDENCE VERIFICATION
+// -------------------------------------------------------------
+
+model Project {
+  id               String            @id @default(uuid())
+  title            String
+  category         String
+  difficulty       String            @default("Intermediate")
+  description      String
+  deliverablesJson String
+  skillsJson       String
+
+  evidenceSubmissions ProjectEvidence[]
+}
+
+model ProjectEvidence {
+  id               String          @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  projectId        String
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  problemText      String
+  approachText     String
+  repoUrl          String?
+  liveDemoUrl      String?
+  videoUrl         String?
+  status           String          @default("SUBMITTED")
+  score            Int             @default(80)
+  createdAt        DateTime        @default(now())
+
+  reviews          ProjectReview[]
+}
+
+model ProjectReview {
+  id                String          @id @default(uuid())
+  projectEvidenceId String
+  projectEvidence   ProjectEvidence @relation(fields: [projectEvidenceId], references: [id], onDelete: Cascade)
+  reviewerProfileId String
+  reviewerProfile   Profile         @relation(fields: [reviewerProfileId], references: [id], onDelete: Cascade)
+  reviewerRole      String          @default("Peer")
+  score             Int
+  feedbackText      String
+  strengthsJson     String
+  improvementsJson  String
+  createdAt         DateTime        @default(now())
+}
+
+// -------------------------------------------------------------
+// 4. CAREER PODS & PEER COLLABORATION
+// -------------------------------------------------------------
+
+model CareerPod {
+  id              String      @id @default(uuid())
+  name            String
+  targetRole      String
+  skillFocus      String
+  maxMembers      Int         @default(8)
+  durationWeeks   Int         @default(6)
+  scheduleDayTime String      @default("Saturdays 6:00 PM IST")
+
+  members         PodMember[]
+  tasks           PodTask[]
+  messages        PodMessage[]
+}
+
+model PodMember {
+  id        String    @id @default(uuid())
+  podId     String
+  pod       CareerPod @relation(fields: [podId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  roleInPod String    @default("Member")
+  joinedAt  DateTime  @default(now())
+}
+
+model PodTask {
+  id                String    @id @default(uuid())
+  podId             String
+  pod               CareerPod @relation(fields: [podId], references: [id], onDelete: Cascade)
+  title             String
+  assigneeProfileId String?
+  status            String    @default("TODO")
+  dueDate           String
+  xpReward          Int       @default(150)
+}
+
+model PodMessage {
+  id              String    @id @default(uuid())
+  podId           String
+  pod             CareerPod @relation(fields: [podId], references: [id], onDelete: Cascade)
+  senderProfileId String
+  messageText     String
+  sentAt          DateTime  @default(now())
+}
+
+// -------------------------------------------------------------
+// 5. MENTORS & ALUMNI
+// -------------------------------------------------------------
+
+model Mentor {
+  id                   String          @id @default(uuid())
+  profileId            String          @unique
+  profile              Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobTitle             String
+  organization         String
+  industry             String
+  yearsExperience      Int             @default(5)
+  bio                  String
+  availabilitySchedule String          @default("2 slots/week")
+  isVerified           Boolean         @default(true)
+
+  requests             MentorRequest[]
+}
+
+model MentorRequest {
+  id                 String         @id @default(uuid())
+  studentProfileId   String
+  studentProfile     StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  mentorId           String
+  mentor             Mentor         @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  sessionType        String         @default("Portfolio Review")
+  goalDescription    String
+  projectEvidenceId  String?
+  status             String         @default("PENDING")
+  scheduledAt        DateTime?
+  feedbackSummary    String?
+
+  reviews            MentorReview[]
+}
+
+model MentorReview {
+  id                     String        @id @default(uuid())
+  mentorRequestId        String
+  mentorRequest          MentorRequest @relation(fields: [mentorRequestId], references: [id], onDelete: Cascade)
+  rating                 Int           @default(5)
+  technicalClarityScore  Int           @default(5)
+  feedbackNotes          String
+  approvedIntroduction   Boolean       @default(false)
+}
+
+// -------------------------------------------------------------
+// 6. COMPANIES, OPPORTUNITIES & MICRO-INTERNSHIPS
+// -------------------------------------------------------------
+
+model Company {
+  id               String            @id @default(uuid())
+  name             String
+  logo             String
+  industry         String
+  tier             String            @default("Tier 1")
+  description      String
+  websiteUrl       String?
+  isVerified       Boolean           @default(true)
+
+  opportunities    Opportunity[]
+  microInternships MicroInternship[]
+}
+
+model Opportunity {
+  id            String  @id @default(uuid())
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title         String
+  type          String  @default("Employer Challenge")
+  role          String
+  location      String
+  stipendAmount String?
+  duration      String
+  status        String  @default("OPEN")
+}
+
+model MicroInternship {
+  id                 String                       @id @default(uuid())
+  companyId          String
+  company            Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title              String
+  targetRole         String
+  stipendAmount      String                       @default("₹3,500")
+  durationDays       Int                          @default(10)
+  estimatedHours     String                       @default("6–8 hrs total")
+  businessProblem    String
+  deliverablesJson   String
+  requiredSkillsJson String
+  isPaid             Boolean                      @default(true)
+  isDemo             Boolean                      @default(true)
+  supervisorName     String
+  supervisorRole     String
+
+  applications       MicroInternshipApplication[]
+  milestones         MicroInternshipMilestone[]
+}
+
+model MicroInternshipApplication {
+  id                String            @id @default(uuid())
+  microInternshipId String
+  microInternship   MicroInternship   @relation(fields: [microInternshipId], references: [id], onDelete: Cascade)
+  studentProfileId  String
+  studentProfile    StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  status            String            @default("Active")
+  resumeVersion     String            @default("ATS_Software_Dev_Resume_v3.pdf")
+  motivationText    String
+  hoursCommitment   Int               @default(8)
+  appliedAt         DateTime          @default(now())
+  decisionAt        DateTime?
+
+  employerReviews   EmployerReview[]
+}
+
+model MicroInternshipMilestone {
+  id                String          @id @default(uuid())
+  microInternshipId String
+  microInternship   MicroInternship @relation(fields: [microInternshipId], references: [id], onDelete: Cascade)
+  stepNumber        Int
+  title             String
+  description       String
+  isCompleted       Boolean         @default(false)
+}
+
+model EmployerReview {
+  id                           String                     @id @default(uuid())
+  microInternshipApplicationId String
+  microInternshipApplication   MicroInternshipApplication @relation(fields: [microInternshipApplicationId], references: [id], onDelete: Cascade)
+  reviewerProfileId            String?
+  overallScore                 Float                      @default(4.8)
+  deliverableQuality           Int                        @default(5)
+  technicalCorrectness         Int                        @default(5)
+  communicationScore           Int                        @default(5)
+  deadlineReliability          Int                        @default(5)
+  problemSolvingScore          Int                        @default(5)
+  feedbackResponseScore        Int                        @default(5)
+  strengthSummary              String
+  improvementSummary           String
+  interviewInvited             Boolean                    @default(true)
+  createdAt                    DateTime                   @default(now())
+}
+
+// -------------------------------------------------------------
+// 7. APPLICATION TRACKER & REJECTION INTELLIGENCE
+// -------------------------------------------------------------
+
+model JobApplication {
+  id                  String             @id @default(uuid())
+  studentProfileId    String
+  studentProfile      StudentProfile     @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  companyName         String
+  role                String
+  location            String             @default("Bengaluru, India")
+  workMode            String             @default("Hybrid")
+  source              String             @default("LinkedIn")
+  resumeVersion       String             @default("ATS_Software_Dev_Resume_v3.pdf")
+  referralUsed        String?
+  currentStage        String             @default("Applied")
+  outcome             String             @default("Active")
+  rejectionStage      String?
+  rejectionReasonType String?
+  employerFeedback    String?
+  patternInference    String?
+  assessmentScore     String?
+  studentNotes        String?
+  appliedAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  events              ApplicationEvent[]
+}
+
+model ApplicationEvent {
+  id               String         @id @default(uuid())
+  jobApplicationId String
+  jobApplication   JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+  fromStage        String
+  toStage          String
+  note             String?
+  eventDate        DateTime       @default(now())
+}
+
+model RejectionInsight {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  blockerTitle     String
+  impactLevel      String         @default("High Impact")
+  confidenceLevel  String         @default("Strong pattern")
+  confidenceType   String         @default("PROBABLE")
+  evidenceText     String
+  explanationText  String
+  recommendedAction String
+  linkedFeature    String
+  estimatedHours   String
+}
+
+model ImprovementPlan {
+  id                 String         @id @default(uuid())
+  studentProfileId   String
+  studentProfile     StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  goal               String
+  targetRole         String
+  currentReadiness   Int            @default(61)
+  predictedReadiness Int            @default(74)
+  estimatedEffort    String         @default("8–10 hours")
+  tasksJson          String
+  status             String         @default("IN_PROGRESS")
+}
+
+// -------------------------------------------------------------
+// 8. WORKREADY SIMULATIONS
+// -------------------------------------------------------------
+
+model WorkReadyScenario {
+  id           String             @id
+  title        String
+  category     String
+  phaseDay     String             @default("Days 1–30: Adapt")
+  roleTrack    String             @default("Frontend Engineering")
+  dilemmaText  String
+  optionsJson  String
+
+  attempts     WorkReadyAttempt[]
+}
+
+model WorkReadyAttempt {
+  id               String            @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile    @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  scenarioId       String
+  scenario         WorkReadyScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  selectedOptionId String
+  score            Int
+  feedbackText     String
+  attemptedAt      DateTime          @default(now())
+}
+
+// -------------------------------------------------------------
+// 9. RESUME INTELLIGENCE & HIDDEN STRENGTHS
+// -------------------------------------------------------------
+
+model CareerPassport {
+  id                  String         @id @default(uuid())
+  studentProfileId    String         @unique
+  studentProfile      StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  verifiedSkillsJson   String
+  verifiedProjectsJson String
+  verifiedBadgesJson   String
+  visibilitySetting   String         @default("Recruiters only")
+  lastUpdated         DateTime       @default(now())
+}
+
+model ResumeVersion {
+  id               String         @id @default(uuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  title            String
+  targetRole       String         @default("Software Engineer")
+  contentText      String
+  atsScore         Int            @default(88)
+  jobMatchScore    Int            @default(82)
+  keywordScore     Int            @default(74)
+  isDefault        Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+}
+
+model HiddenStrength {
+  id                  String         @id @default(uuid())
+  studentProfileId    String
+  studentProfile      StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  title               String
+  category            String
+  confidence          String         @default("High confidence")
+  observedBehavior    String
+  repeatedEvidence    String
+  relevantOutcome     String
+  careerInsight       String
+  evidenceSourcesJson String
+  generatedBullet     String
+  generatedSummary    String
+  generatedStory      String
+  isApprovedForResume Boolean        @default(true)
+  passportVisibility  String         @default("Recruiters only")
+  isHidden            Boolean        @default(false)
+}
+
+// -------------------------------------------------------------
+// 10. NOTIFICATIONS, ACCESS & AUDIT LOGS
+// -------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+}
+
+model AccessResource {
+  id               String  @id @default(uuid())
+  name             String
+  provider         String
+  category         String
+  description      String
+  valueDescription String
+  isActivated      Boolean @default(false)
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  profileId    String?
+  profile      Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  action       String
+  entityType   String
+  entityId     String?
+  metadataJson String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+}

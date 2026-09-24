@@ -29,6 +29,7 @@ import {
   WorkplaceScenario,
   workplaceScenariosData,
 } from '../../data/workReadyData';
+import { careerApi } from '../../api';
 
 interface SimulationWorkspaceProps {
   scenario?: WorkplaceScenario;
@@ -60,10 +61,10 @@ export const SimulationWorkspace: React.FC<SimulationWorkspaceProps> = ({
   const handleSubmitDecision = () => {
     if (useCustomText) {
       if (!customTextResponse.trim()) return;
-      // Auto-evaluate custom text with exemplary option
       const res = scenario.options[1] || scenario.options[0];
       setEvaluatedResult(res);
       if (onScenarioCompleted) onScenarioCompleted(scenario.id, 90);
+      careerApi.submitWorkReadyAttempt(scenario.id, 'opt-custom').catch(() => {});
       act(`Decision submitted: Custom workplace response evaluated! (+50 XP)`, 50);
       return;
     }
@@ -72,6 +73,7 @@ export const SimulationWorkspace: React.FC<SimulationWorkspaceProps> = ({
     setEvaluatedResult(selectedOption);
     const score = selectedOption.consequenceLevel === 'EXEMPLARY' ? 95 : selectedOption.consequenceLevel === 'ACCEPTABLE_WITH_RISK' ? 70 : 45;
     if (onScenarioCompleted) onScenarioCompleted(scenario.id, score);
+    careerApi.submitWorkReadyAttempt(scenario.id, selectedOption.id).catch(() => {});
     act(`Decision submitted: ${selectedOption.consequenceLevel} outcome (+${score} XP)`, score);
   };
 

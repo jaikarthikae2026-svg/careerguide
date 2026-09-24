@@ -2,3 +2,7 @@ node_modules
 .env
 *.env
 backend/.env
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal

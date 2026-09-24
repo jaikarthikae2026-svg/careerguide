@@ -20,6 +20,7 @@ import {
   JobApplication,
   sampleApplicationsData,
 } from '../../data/rejectionIntelligenceData';
+import { careerApi } from '../../api';
 
 interface ApplicationTrackerViewProps {
   onSelectApplication: (app: JobApplication) => void;
@@ -80,6 +81,20 @@ export const ApplicationTrackerView: React.FC<ApplicationTrackerViewProps> = ({
       outcome: 'Active',
       studentNotes: newNotes,
     };
+
+    careerApi
+      .createJobApplication({
+        companyName: newCompany,
+        role: newRole,
+        location: newLocation,
+        workMode: newMode,
+        source: newSource,
+        resumeVersion: newResume,
+        referralUsed: newReferral || 'No',
+        currentStage: newStage,
+        studentNotes: newNotes,
+      })
+      .catch(() => {});
 
     setApplications([newApp, ...applications]);
     setAddModalOpen(false);
