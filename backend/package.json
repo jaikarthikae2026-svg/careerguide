@@ -1,7 +1,39 @@
 {
-  "name":"careeros-api","private":true,"version":"1.0.0","type":"module",
-  "scripts":{"dev":"tsx watch src/server.ts","build":"tsc","start":"node dist/server.js","prisma:generate":"prisma generate","seed":"tsx prisma/seed.ts"},
-  "prisma":{"seed":"tsx prisma/seed.ts"},
-  "dependencies":{"@prisma/client":"latest","bcrypt":"latest","cors":"latest","dotenv":"latest","express":"latest","helmet":"latest","jsonwebtoken":"latest","morgan":"latest","zod":"latest"},
-  "devDependencies":{"@types/bcrypt":"latest","@types/cors":"latest","@types/express":"latest","@types/jsonwebtoken":"latest","@types/morgan":"latest","@types/node":"latest","prisma":"latest","tsx":"latest","typescript":"latest"}
+  "name": "careeros-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^2.18.0",
+    "@prisma/client": "latest",
+    "bcrypt": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "helmet": "latest",
+    "jsonwebtoken": "latest",
+    "morgan": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "latest",
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/jsonwebtoken": "latest",
+    "@types/morgan": "latest",
+    "@types/node": "latest",
+    "prisma": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
 }

@@ -43,9 +43,27 @@ import {
   Brain,
   Code2,
   Heart,
+  Key,
+  RefreshCw,
+  Bot,
+  Users,
+  Briefcase,
+  ArrowRight,
 } from "lucide-react";
 import "./styles.css";
-import { careerApi } from "./api";
+import {
+  careerApi,
+  getStoredGeminiKey,
+  setStoredGeminiKey,
+  ChatMessage,
+  InterviewEvaluation,
+  AiStatus,
+} from "./api";
+import { CareerNetwork } from "./components/CareerNetwork/CareerNetwork";
+import { WorkReady } from "./components/WorkReady/WorkReady";
+import { MicroInternships } from "./components/MicroInternships/MicroInternships";
+import { ReadinessAnalytics } from "./components/ReadinessAnalytics/ReadinessAnalytics";
+import { ResumeIntelligence } from "./components/ResumeIntelligence/ResumeIntelligence";
 
 const studentName = "Divya";
 const normalizeStudentIdentity = () => {
@@ -76,6 +94,9 @@ type Page =
   | "Career Roadmap"
   | "Learning Hub"
   | "Company Fit"
+  | "Career Network"
+  | "WorkReady"
+  | "Micro-Internships"
   | "Daily Mission"
   | "Mock Arena"
   | "Resume Intelligence"
@@ -88,6 +109,9 @@ const nav: { label: Page; icon: any }[] = [
   ["Career Roadmap", Map],
   ["Learning Hub", BookOpen],
   ["Company Fit", Target],
+  ["Career Network", Users],
+  ["WorkReady", Briefcase],
+  ["Micro-Internships", Sparkles],
   ["Daily Mission", CalendarDays],
   ["Mock Arena", Mic2],
   ["Resume Intelligence", FileText],
@@ -128,20 +152,28 @@ function Score({ value, size = 160 }: { value: number; size?: number }) {
 function Card({
   children,
   className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <section className={"card " + className}>{children}</section>;
+  style,
+  onClick,
+  ...props
+}: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <section className={"card " + className} style={style} onClick={onClick} {...props}>
+      {children}
+    </section>
+  );
 }
 function Pill({
   children,
   tone = "purple",
-}: {
-  children: React.ReactNode;
-  tone?: string;
-}) {
-  return <span className={"pill " + tone}>{children}</span>;
+  className = "",
+  style,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
+  return (
+    <span className={"pill " + tone + " " + className} style={style} {...props}>
+      {children}
+    </span>
+  );
 }
 function ProfileEditor({
   close,
@@ -231,13 +263,48 @@ function SettingsPanel({
 }) {
   const [notifications, setNotifications] = useState(true);
   const [compactMode, setCompactMode] = useState(false);
+  const [geminiKey, setGeminiKey] = useState(() => getStoredGeminiKey());
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    careerApi
+      .getAiStatus()
+      .then(setStatus)
+      .catch(() => {});
+  }, []);
+
+  const testConnection = async () => {
+    setTesting(true);
+    setStoredGeminiKey(geminiKey);
+    try {
+      const res = await careerApi.getAiStatus();
+      setStatus(res);
+      if (res.isAvailable) {
+        act("Gemini API connection verified!");
+      } else {
+        act("Running in offline mock mode");
+      }
+    } catch (e: any) {
+      act("Connection check failed");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const saveSettings = () => {
+    setStoredGeminiKey(geminiKey);
+    act("Settings & API configuration saved");
+    close();
+  };
+
   return (
     <div className="profileModalOverlay" onClick={close}>
       <div className="profileModal" onClick={(e) => e.stopPropagation()}>
         <div className="profileModalHeader">
           <div>
             <p className="eyebrow">CAREEROS SETTINGS</p>
-            <h2>Preferences</h2>
+            <h2>Preferences & AI Engine</h2>
           </div>
           <button className="icon" onClick={close} aria-label="Close settings">
             <X size={18} />
@@ -269,17 +336,40 @@ function SettingsPanel({
             />
           </label>
         </div>
+
+        <div className="apiKeySection">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Sparkles size={16} color="#9d8cff" />
+              <h4>Google Gemini API Key</h4>
+            </div>
+            {status && (
+              <span className={`aiBadge ${status.isAvailable ? "active" : "mock"}`}>
+                {status.isAvailable ? `Gemini 2.5 Flash (${status.configuredVia})` : "Smart Mock Mode"}
+              </span>
+            )}
+          </div>
+          <p className="muted" style={{ fontSize: 11, margin: "4px 0 10px" }}>
+            Provide your Gemini API key to activate live LLM intelligence across the Career Mentor, Mock Interview Arena, and Resume Intelligence.
+          </p>
+          <div className="apiKeyInputGroup">
+            <input
+              type="password"
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              placeholder="AIzaSy..."
+            />
+            <button className="secondary" onClick={testConnection} disabled={testing} style={{ minWidth: 110 }}>
+              {testing ? <RefreshCw size={14} className="aiSpin" /> : "Test Key"}
+            </button>
+          </div>
+        </div>
+
         <div className="profileActions">
           <button className="secondary" onClick={close}>
             Cancel
           </button>
-          <button
-            className="primary"
-            onClick={() => {
-              act("Settings saved");
-              close();
-            }}
-          >
+          <button className="primary" onClick={saveSettings}>
             Save settings
           </button>
         </div>
@@ -582,6 +672,15 @@ function App() {
               act={act}
             />
           )}{" "}
+          {page === "Career Network" && (
+            <CareerNetwork go={setPage} act={act} />
+          )}{" "}
+          {page === "WorkReady" && (
+            <WorkReady go={setPage} act={act} />
+          )}{" "}
+          {page === "Micro-Internships" && (
+            <MicroInternships go={setPage} act={act} />
+          )}{" "}
           {page === "Daily Mission" && (
             <Mission
               completed={completed}
@@ -590,9 +689,11 @@ function App() {
             />
           )}{" "}
           {page === "Mock Arena" && <Mock act={act} />}{" "}
-          {page === "Resume Intelligence" && <Resume act={act} />}{" "}
+          {page === "Resume Intelligence" && (
+            <ResumeIntelligence go={setPage} act={act} />
+          )}{" "}
           {page === "Readiness Analytics" && (
-            <Analytics readiness={readiness} />
+            <ReadinessAnalytics readiness={readiness} go={setPage} act={act} />
           )}{" "}
           {page === "Future Scope" && <Future act={act} />}
         </div>
@@ -701,6 +802,56 @@ function Dashboard(p: any) {
           </Card>
         ))}
       </div>
+      <Card className="hiddenStrengthCard" style={{ background: 'linear-gradient(135deg, #1c1a38, #141724)', border: '1px solid #4a3d7d', marginTop: 14 }}>
+        <div className="cardTop" style={{ marginBottom: 6 }}>
+          <Pill tone="purple"><Sparkles size={14} /> NEW INSIGHT</Pill>
+          <span className="pill green">High Confidence</span>
+        </div>
+        <h3 style={{ fontSize: 17, margin: '6px 0 4px', color: '#f0edff' }}>Feedback-Driven Execution</h3>
+        <p style={{ color: '#c7cbde', fontSize: 12, margin: '0 0 10px', lineHeight: 1.45 }}>
+          CareerOS discovered a strength you may be underrepresenting: You consistently improve your work by <b>28%</b> after receiving review feedback across 3 projects.
+        </p>
+        <button className="primary" style={{ fontSize: 11, padding: '6px 12px' }} onClick={() => p.go("Resume Intelligence")}>
+          <Sparkles size={13} /> View Hidden Strength <ArrowRight size={13} />
+        </button>
+      </Card>
+      <Card className="applicationInsightCard" style={{ background: 'linear-gradient(135deg, #201a3c, #141724)', border: '1px solid #48397a', marginTop: 14 }}>
+        <div className="cardTop" style={{ marginBottom: 6 }}>
+          <Pill tone="orange"><Sparkles size={14} /> APPLICATION INSIGHT</Pill>
+          <span className="pill purple">18 Tracked Applications</span>
+        </div>
+        <h3 style={{ fontSize: 17, margin: '6px 0 4px', color: '#f0edff' }}>You received 6 responses from your last 18 applications</h3>
+        <p style={{ color: '#c7cbde', fontSize: 12, margin: '0 0 10px', lineHeight: 1.45 }}>
+          <b>Most common drop-off:</b> Technical screening · <b>Likely improvement:</b> Strengthen timed problem-solving & automated testing proof.
+        </p>
+        <button className="primary" style={{ fontSize: 11, padding: '6px 12px' }} onClick={() => p.go("Readiness Analytics")}>
+          <Sparkles size={13} /> View Rejection Insights & Plan <ArrowRight size={13} />
+        </button>
+      </Card>
+      <Card className="microRecommendationCard" style={{ background: 'linear-gradient(135deg, #221940, #141724)', border: '1px solid #4a3d7d', marginTop: 14 }}>
+        <div className="cardTop" style={{ marginBottom: 8 }}>
+          <Pill tone="purple"><Sparkles size={14} /> RECOMMENDED MICRO-INTERNSHIP</Pill>
+          <span className="pill green">82% Match</span>
+        </div>
+        <h2 style={{ fontSize: 18, margin: '6px 0 4px', color: '#f0edff' }}>Build a Student Placement Analytics Dashboard</h2>
+        <p style={{ color: '#c7cbde', fontSize: 12, margin: '0 0 10px' }}>
+          You are an <b>82% match</b> based on your target role, Skill Tree, and completed learning modules.
+        </p>
+        <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#a2aabf', background: '#131520', padding: '8px 12px', borderRadius: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div>🛠️ <b>Skills:</b> SQL · Excel · Power BI · Storytelling</div>
+          <div>⏱️ <b>Duration:</b> 10 days (6–8 hrs total)</div>
+          <div>💰 <b>Stipend:</b> ₹3,500 stipend</div>
+          <div>🏆 <b>Outcome:</b> Employer-reviewed project & verified experience</div>
+        </div>
+        <div className="buttonRow" style={{ margin: 0 }}>
+          <button className="primary" onClick={() => p.go("Micro-Internships")}>
+            <Briefcase size={15} /> View Opportunity & Apply
+          </button>
+          <button className="secondary" onClick={() => p.go("Skill Tree")}>
+            Improve Match in Skill Tree <ChevronRight size={15} />
+          </button>
+        </div>
+      </Card>
       <Card className="missionPreview">
         <div>
           <p className="eyebrow">TODAY’S MISSION</p>
@@ -1574,7 +1725,15 @@ function Mock({ act }: any) {
   const [mode, setMode] = useState("Technical Interview");
   const [started, setStarted] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [report, setReport] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [generatingQuestion, setGeneratingQuestion] = useState(false);
+  const [customQuestion, setCustomQuestion] = useState<string | null>(null);
+  const [evaluation, setEvaluation] = useState<InterviewEvaluation | null>(null);
+  const [history, setHistory] = useState<{ attempt: number; score: number }[]>([
+    { attempt: 1, score: 62 },
+    { attempt: 2, score: 74 },
+  ]);
+
   const modes = [
     "Technical Interview",
     "HR Interview",
@@ -1583,22 +1742,78 @@ function Mock({ act }: any) {
     "Target Company",
     "Communication",
   ];
-  const questions: any = {
-    "Technical Interview":
-      "Explain the difference between a process and a thread.",
-    "HR Interview":
-      "Tell me about a time you handled a difficult team disagreement.",
+
+  const defaultQuestions: Record<string, string> = {
+    "Technical Interview": "Explain the difference between a process and a thread.",
+    "HR Interview": "Tell me about a time you handled a difficult team disagreement.",
     "Core CS": "What happens when you type a URL into a browser?",
-    "Project Defense":
-      "What was the most important technical trade-off in your project?",
+    "Project Defense": "What was the most important technical trade-off in your project?",
     "Target Company": "Why do you want to work at Nexa Systems?",
     Communication: "Explain binary search to a non-technical person.",
   };
-  const submit = () => {
-    if (!answer.trim()) return;
-    setReport(true);
-    act("AI feedback report generated", 60);
+
+  const currentQuestion = customQuestion || defaultQuestions[mode] || defaultQuestions["Technical Interview"];
+
+  const generateNewQuestion = async () => {
+    setGeneratingQuestion(true);
+    setAnswer("");
+    setEvaluation(null);
+    try {
+      const res = await careerApi.generateInterviewQuestion({ type: mode });
+      setCustomQuestion(res.question);
+      act(`New AI question generated (${res.provider === "gemini" ? "Gemini LLM" : "Mock"})`);
+    } catch {
+      act("Using standard question catalog");
+    } finally {
+      setGeneratingQuestion(false);
+    }
   };
+
+  const submit = async () => {
+    if (!answer.trim() || evaluating) return;
+    setEvaluating(true);
+    try {
+      const result = await careerApi.evaluateInterview({
+        type: mode,
+        question: currentQuestion,
+        answer: answer.trim(),
+      });
+      setEvaluation(result);
+      setHistory((prev) => [...prev, { attempt: prev.length + 1, score: result.score }]);
+      act(`AI evaluation completed (${result.score}/100)`, 60);
+    } catch (err: any) {
+      act("AI evaluation failed, please try again");
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      act("Voice recognition not supported in this browser");
+      return;
+    }
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      act("Voice listening... Speak your answer now");
+      recognition.onresult = (e: any) => {
+        const transcript = e.results[0][0].transcript;
+        setAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        act("Voice captured!");
+      };
+      recognition.onerror = () => {
+        act("Voice input cancelled");
+      };
+      recognition.start();
+    } catch {
+      act("Microphone unavailable");
+    }
+  };
+
   return (
     <>
       <div className="titleRow">
@@ -1606,7 +1821,7 @@ function Mock({ act }: any) {
           <p className="eyebrow">AI MOCK ARENA</p>
           <h1>Practice under pressure</h1>
           <p className="muted">
-            Realistic coaching. Actionable feedback. Measurable improvement.
+            Realistic coaching powered by Gemini LLM. Actionable feedback. Measurable improvement.
           </p>
         </div>
       </div>
@@ -1618,7 +1833,8 @@ function Mock({ act }: any) {
               setMode(m);
               setStarted(false);
               setAnswer("");
-              setReport(false);
+              setCustomQuestion(null);
+              setEvaluation(null);
             }}
             key={m}
           >
@@ -1632,10 +1848,25 @@ function Mock({ act }: any) {
           <div className="aiFace">
             <Sparkles />
           </div>
-          <div>
-            <Pill>AI INTERVIEWER</Pill>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <Pill>
+                <Bot size={12} style={{ marginRight: 4 }} /> AI INTERVIEWER
+              </Pill>
+              {started && (
+                <button
+                  className="secondary"
+                  onClick={generateNewQuestion}
+                  disabled={generatingQuestion}
+                  style={{ fontSize: 11, padding: "4px 10px", height: "auto" }}
+                >
+                  <RefreshCw size={12} className={generatingQuestion ? "aiSpin" : ""} />
+                  {generatingQuestion ? "Generating..." : "New Question"}
+                </button>
+              )}
+            </div>
             <h2>
-              {started ? questions[mode] : "Choose a mode to enter the arena"}
+              {started ? currentQuestion : "Choose a mode to enter the arena"}
             </h2>
             <p>
               {started
@@ -1648,24 +1879,33 @@ function Mock({ act }: any) {
           <div className="answerArea">
             <button
               className="secondary"
-              onClick={() => act("Voice response is listening…")}
+              onClick={handleVoiceInput}
             >
-              <Mic2 /> Answer by voice
+              <Mic2 size={16} /> Answer by voice
             </button>
             <textarea
               value={answer}
               onChange={(e) => {
                 setAnswer(e.target.value);
-                setReport(false);
+                setEvaluation(null);
               }}
-              placeholder="Or type your answer here…"
+              placeholder="Or type your answer here… (Explain your reasoning, architectural choices, and complexity trade-offs)"
+              disabled={evaluating}
             />
             <button
               className="primary"
               onClick={submit}
-              disabled={!answer.trim()}
+              disabled={!answer.trim() || evaluating}
             >
-              Submit answer <Send size={15} />
+              {evaluating ? (
+                <>
+                  <RefreshCw size={14} className="aiSpin" /> Evaluating...
+                </>
+              ) : (
+                <>
+                  Submit answer <Send size={15} />
+                </>
+              )}
             </button>
           </div>
         ) : (
@@ -1674,50 +1914,88 @@ function Mock({ act }: any) {
           </button>
         )}
       </Card>
-      {report && (
+
+      {evaluation && (
         <Card className="aiReport">
           <div className="cardTop">
-            <Pill>
-              <Sparkles size={14} /> AI FEEDBACK REPORT
-            </Pill>
-            <b>79 / 100</b>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Pill>
+                <Sparkles size={14} /> AI FEEDBACK REPORT
+              </Pill>
+              <span className={`aiBadge ${evaluation.provider === "gemini" ? "active" : "mock"}`}>
+                {evaluation.provider === "gemini" ? "Evaluated by Gemini LLM" : "Smart Mock Feedback"}
+              </span>
+            </div>
+            <b>{evaluation.score} / 100</b>
           </div>
-          <h2>Good foundation, Alex.</h2>
-          <p>
-            Your response addressed the question. Add a concrete example,
-            explain your trade-offs and include measurable results to make the
-            answer stronger.
-          </p>
+
+          <div className="scoreBreakdown">
+            <div className="scoreTag">
+              <span>Technical Depth</span>
+              <b>{evaluation.technicalScore}/10</b>
+            </div>
+            <div className="scoreTag">
+              <span>Communication</span>
+              <b>{evaluation.communicationScore}/10</b>
+            </div>
+            <div className="scoreTag">
+              <span>Clarity</span>
+              <b>{evaluation.clarityScore}/10</b>
+            </div>
+            <div className="scoreTag">
+              <span>Structure & Trade-offs</span>
+              <b>{evaluation.structureScore}/10</b>
+            </div>
+          </div>
+
+          <h2>{evaluation.score >= 80 ? "Outstanding answer!" : evaluation.score >= 65 ? "Good foundation!" : "Keep practicing!"}</h2>
+          <p>{evaluation.feedback}</p>
+
           <div className="reportGrid">
             <div>
               <h4>Strengths</h4>
-              <p className="checks">
-                <Check /> Clear response structure <Check /> Relevant reasoning
-              </p>
+              <div className="checks" style={{ display: "grid", gap: 6 }}>
+                {evaluation.strengths.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                    <Check size={14} color="#75d7a0" /> {s}
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <h4>Improve next</h4>
-              <p className="warn">
-                Support your answer with one specific example and a measurable
-                outcome.
-              </p>
+              <div className="warn" style={{ display: "grid", gap: 6 }}>
+                {evaluation.improvements.map((imp, i) => (
+                  <div key={i} style={{ fontSize: 12, lineHeight: 1.4 }}>
+                    • {imp}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="aiReason">
+
+          {evaluation.idealAnswer && (
+            <div className="idealAnswerBox">
+              <h4>Exemplary Model Answer</h4>
+              <p>"{evaluation.idealAnswer}"</p>
+            </div>
+          )}
+
+          <div className="aiReason" style={{ marginTop: 14 }}>
             <Brain size={17} />
             <span>
-              <b>Next practice:</b> Give a concise answer, then explain the
-              trade-off behind your choice.
+              <b>Next practice:</b> Give a structured answer using Context → Action → Trade-off → Result.
             </span>
           </div>
         </Card>
       )}
+
       <div className="twoCol">
         <Card>
           <h3>Improvement curve</h3>
           <div className="chart">
             <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={[{ v: 62 }, { v: 74 }, { v: 79 }]}>
+              <LineChart data={history.map((h) => ({ v: h.score }))}>
                 <Line
                   type="monotone"
                   dataKey="v"
@@ -1731,16 +2009,14 @@ function Mock({ act }: any) {
         </Card>
         <Card>
           <h3>Attempt history</h3>
-          {["Attempt 1 · 62%", "Attempt 2 · 74%", "Attempt 3 · Current"].map(
-            (x, i) => (
-              <div className="attempt" key={x}>
-                <span>
-                  {i === 2 ? <Play size={14} /> : <Check size={14} />}
-                </span>
-                {x}
-              </div>
-            ),
-          )}
+          {history.map((h, i) => (
+            <div className="attempt" key={i}>
+              <span>
+                {i === history.length - 1 ? <Play size={14} /> : <Check size={14} />}
+              </span>
+              Attempt {h.attempt} · {h.score}% {i === history.length - 1 && "· Current"}
+            </div>
+          ))}
         </Card>
       </div>
     </>
@@ -1750,86 +2026,119 @@ function Resume({ act }: any) {
   const [company, setCompany] = useState("");
   const [companyPromptOpen, setCompanyPromptOpen] = useState(false);
   const [companyInput, setCompanyInput] = useState("");
+  const [isTailoring, setIsTailoring] = useState(false);
+  const [tailorExplanation, setTailorExplanation] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<"gemini" | "mock">("mock");
   const [resumeMode, setResumeMode] = useState<
     "general" | "improve" | "concise" | "keywords" | "quantify" | "company"
   >("general");
+
+  const [experienceOne, setExperienceOne] = useState(
+    "Built an AI-powered placement preparation platform using React, Node.js and intelligent study paths.",
+  );
+  const [experienceTwo, setExperienceTwo] = useState(
+    "Developed a computer vision system to automate attendance tracking and real-time reporting.",
+  );
+  const [skillsText, setSkillsText] = useState("Python · React · Node.js · SQL · Git · Data Structures");
+  const [missingText, setMissingText] = useState("⚠ SQL · REST APIs · Docker");
+  const [metrics, setMetrics] = useState({
+    jobMatch: 82,
+    atsScore: 88,
+    keywordCoverage: 74,
+  });
+
   const tailored = company.length > 0;
-  const resumeContent = {
-    general: {
-      experienceOne:
-        "Built an AI-powered placement preparation platform using React, Node.js and intelligent study paths.",
-      experienceTwo:
-        "Developed a computer vision system to automate attendance tracking and real-time reporting.",
-      skills: "Python · React · Node.js · SQL · Git · Data Structures",
-      missing: "⚠ SQL · REST APIs · Docker",
-    },
-    improve: {
-      experienceOne:
-        "Built an AI-powered placement preparation platform using React, Node.js, and intelligent study paths to help students prepare for targeted roles with structured guidance.",
-      experienceTwo:
-        "Developed a computer vision attendance system that automated tracking, reduced manual effort, and improved reporting accuracy.",
-      skills:
-        "Python · React · Node.js · SQL · REST APIs · Git · Data Structures",
-      missing: "✓ Strong user-focused product work · SQL · Docker",
-    },
-    concise: {
-      experienceOne:
-        "Built an AI career platform with React, Node.js, and intelligent study paths for guided preparation.",
-      experienceTwo:
-        "Created a computer vision attendance system for automated tracking and reporting.",
-      skills: "Python · React · Node.js · SQL · Git · Data Structures",
-      missing: "⚠ Add more quantifiable impact metrics",
-    },
-    keywords: {
-      experienceOne:
-        "Built an AI-powered career preparation platform using React, Node.js, and intelligent study paths to improve student outcomes.",
-      experienceTwo:
-        "Developed a computer vision attendance system with real-time tracking, automation, and reporting features.",
-      skills:
-        "Python · React · Node.js · SQL · REST APIs · Docker · Git · Data Structures",
-      missing: "✓ Added relevant keywords for product and backend roles",
-    },
-    quantify: {
-      experienceOne:
-        "Built an AI-powered career preparation platform used by students to improve preparation efficiency, increasing engagement through structured, personalized guidance.",
-      experienceTwo:
-        "Developed a computer vision attendance system that automated tracking and reporting for a faster, more accurate workflow.",
-      skills:
-        "Python · React · Node.js · SQL · Data Structures · REST APIs · Docker",
-      missing: "✓ Quantified impact with workflow and efficiency language",
-    },
-    company: {
-      experienceOne: `Built an AI-powered career preparation platform tailored to ${company} engineering priorities, emphasizing fast product iteration and practical problem solving.`,
-      experienceTwo: `Developed a computer vision attendance system that improved workflow automation and real-time reporting for operational efficiency.`,
-      skills: `Python · React · Node.js · SQL · REST APIs · Docker · Data Structures · ${company} fit`,
-      missing: `✓ Resume aligned to ${company} · SQL · REST APIs · Docker`,
-    },
-  };
-  const currentResume =
-    resumeContent[resumeMode === "company" ? "company" : resumeMode];
-  const submitCompany = (event: React.FormEvent) => {
+
+  const submitCompany = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = companyInput.trim();
     if (!name) return;
     setCompany(name);
     setResumeMode("company");
     setCompanyPromptOpen(false);
-    act(`Resume tailored for ${name}`, 50);
+    setIsTailoring(true);
+
+    try {
+      const res = await careerApi.tailorResumeBullet({
+        bulletText: experienceOne,
+        action: "company",
+        targetCompany: name,
+      });
+      setExperienceOne(res.rewrittenText);
+      setTailorExplanation(res.explanation);
+      setAiProvider(res.provider);
+      setSkillsText(`Python · React · Node.js · SQL · REST APIs · Docker · ${name} fit`);
+      setMissingText(`✓ Aligned to ${name} engineering stack`);
+      act(`Resume tailored for ${name} using ${res.provider === "gemini" ? "Gemini LLM" : "Mock AI"}`, 50);
+    } catch {
+      act(`Resume tailored for ${name}`, 50);
+    } finally {
+      setIsTailoring(false);
+    }
   };
-  const handleAction = (action: string) => {
+
+  const handleAction = async (action: string) => {
     if (action === "Tailor for target company") {
       setCompanyPromptOpen(true);
       return;
     }
-    const modeMap: any = {
+    const modeMap: Record<string, "improve" | "concise" | "keywords" | "quantify" | "company"> = {
       "Improve bullet point": "improve",
       "Make more concise": "concise",
       "Add relevant keywords": "keywords",
       "Quantify impact": "quantify",
     };
-    setResumeMode(modeMap[action] || "general");
-    act(`${action} applied to your resume`, 20);
+
+    const targetAction = modeMap[action] || "improve";
+    setResumeMode(targetAction);
+    setIsTailoring(true);
+
+    try {
+      const res = await careerApi.tailorResumeBullet({
+        bulletText: experienceOne,
+        action: targetAction,
+        targetCompany: company || undefined,
+      });
+      setExperienceOne(res.rewrittenText);
+      setTailorExplanation(res.explanation);
+      setAiProvider(res.provider);
+
+      if (targetAction === "keywords") {
+        setSkillsText("Python · React · Node.js · SQL · REST APIs · Docker · Git · Data Structures");
+        setMissingText("✓ Added relevant keywords for backend and fullstack roles");
+      } else if (targetAction === "quantify") {
+        setMissingText("✓ Quantified impact with performance metrics");
+      }
+
+      act(`${action} generated by ${res.provider === "gemini" ? "Gemini LLM" : "AI"}`, 20);
+    } catch {
+      act(`${action} applied to your resume`, 20);
+    } finally {
+      setIsTailoring(false);
+    }
   };
+
+  const generateTargetedResume = async () => {
+    setIsTailoring(true);
+    try {
+      const analysis = await careerApi.analyzeResume({
+        resumeContent: `${experienceOne}\n${experienceTwo}\n${skillsText}`,
+        companyName: company || "TechNova",
+      });
+      setMetrics({
+        jobMatch: analysis.jobMatchScore,
+        atsScore: analysis.atsScore,
+        keywordCoverage: analysis.keywordScore,
+      });
+      setAiProvider(analysis.provider);
+      act(`Targeted resume analyzed (${analysis.atsScore}% ATS score)`, 50);
+    } catch {
+      act("Targeted resume generated", 50);
+    } finally {
+      setIsTailoring(false);
+    }
+  };
+
   const versionPills = [
     { label: "General Resume", mode: "general" },
     { label: "Software Engineer Resume", mode: "improve" },
@@ -1838,19 +2147,22 @@ function Resume({ act }: any) {
       mode: tailored ? "company" : "general",
     },
   ];
+
   return (
     <>
       <div className="titleRow">
         <div>
           <p className="eyebrow">RESUME INTELLIGENCE</p>
           <h1>Turn your experience into signal</h1>
-          <p className="muted">A precise, role-aware review of your resume.</p>
+          <p className="muted">A precise, role-aware review of your resume powered by Gemini LLM.</p>
         </div>
         <button
           className="primary"
-          onClick={() => act("Targeted resume generated", 50)}
+          onClick={generateTargetedResume}
+          disabled={isTailoring}
         >
-          Generate targeted resume
+          {isTailoring ? <RefreshCw size={14} className="aiSpin" /> : <Sparkles size={14} />}
+          {isTailoring ? "Analyzing..." : "Generate targeted resume"}
         </button>
       </div>
       <div className="resumeLayout">
@@ -1862,13 +2174,25 @@ function Resume({ act }: any) {
           </p>
           <hr />
           <b>EXPERIENCE</b>
-          <h4>AI Career Platform</h4>
-          <p>{currentResume.experienceOne}</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+            <h4 style={{ margin: 0 }}>AI Career Platform</h4>
+            {tailorExplanation && (
+              <span className={`aiBadge ${aiProvider === "gemini" ? "active" : "mock"}`} style={{ fontSize: 9 }}>
+                {aiProvider === "gemini" ? "Gemini Rewritten" : "AI Mode"}
+              </span>
+            )}
+          </div>
+          <p style={{ marginTop: 4 }}>{experienceOne}</p>
+          {tailorExplanation && (
+            <small style={{ display: "block", color: "#695ea3", fontStyle: "italic", marginBottom: 8 }}>
+              💡 {tailorExplanation}
+            </small>
+          )}
           <h4>Smart Attendance System</h4>
-          <p>{currentResume.experienceTwo}</p>
+          <p>{experienceTwo}</p>
           <hr />
           <b>SKILLS</b>
-          <p>{currentResume.skills}</p>
+          <p>{skillsText}</p>
           {tailored && (
             <>
               <hr />
@@ -1879,14 +2203,19 @@ function Resume({ act }: any) {
         </Card>
         <div>
           <Card>
-            <Pill>
-              <Sparkles size={14} /> AI RESUME INTELLIGENCE
-            </Pill>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Pill>
+                <Sparkles size={14} /> AI RESUME INTELLIGENCE
+              </Pill>
+              <span className={`aiBadge ${aiProvider === "gemini" ? "active" : "mock"}`}>
+                {aiProvider === "gemini" ? "Gemini 2.5 Flash" : "Smart Mock"}
+              </span>
+            </div>
             <div className="resumeMetrics">
               {[
-                ["82%", "Job Match"],
-                ["88%", "ATS Compatibility"],
-                ["74%", "Keyword Coverage"],
+                [`${metrics.jobMatch}%`, "Job Match"],
+                [`${metrics.atsScore}%`, "ATS Compatibility"],
+                [`${metrics.keywordCoverage}%`, "Keyword Coverage"],
               ].map((x) => (
                 <div key={x[1]}>
                   <b>{x[0]}</b>
@@ -1896,12 +2225,11 @@ function Resume({ act }: any) {
             </div>
             <h4>Strengths</h4>
             <p className="checks">
-              <Check /> Python <Check /> Full-stack projects <Check /> GitHub
-              activity
+              <Check size={14} /> Python <Check size={14} /> Full-stack projects <Check size={14} /> GitHub activity
             </p>
             <h4>Missing keywords</h4>
             <p className="warn">
-              {tailored ? currentResume.missing : `${currentResume.missing}`}
+              {missingText}
             </p>
           </Card>
           <Card>
@@ -1917,8 +2245,9 @@ function Resume({ act }: any) {
                 className="actionButton"
                 onClick={() => handleAction(x)}
                 key={x}
+                disabled={isTailoring}
               >
-                {x}
+                <span>{x}</span>
                 <ChevronRight size={16} />
               </button>
             ))}
@@ -1943,7 +2272,7 @@ function Resume({ act }: any) {
                     setCompanyPromptOpen(true);
                     return;
                   }
-                  setResumeMode(mode);
+                  setResumeMode(mode as any);
                   act(`${label} opened`, 20);
                 }}
               >
@@ -1983,7 +2312,7 @@ function Resume({ act }: any) {
                 autoFocus
                 value={companyInput}
                 onChange={(event) => setCompanyInput(event.target.value)}
-                placeholder="e.g. Google"
+                placeholder="e.g. Google, Microsoft, TechNova"
               />
             </label>
             <div className="profileActions">
@@ -1994,8 +2323,8 @@ function Resume({ act }: any) {
               >
                 Cancel
               </button>
-              <button className="primary" type="submit">
-                Tailor resume
+              <button className="primary" type="submit" disabled={isTailoring}>
+                {isTailoring ? "Tailoring..." : "Tailor resume"}
               </button>
             </div>
           </form>
@@ -2367,63 +2696,88 @@ function Future({ act }: any) {
 }
 function Ai({ close, act }: any) {
   const [q, setQ] = useState("");
-  const [messages, setMessages] = useState<string[]>(() =>
-    localStorage.getItem("careerOSStress")
-      ? [
-          "You: I feel stressed",
-          "CareerOS AI: I’m sorry you’re feeling stressed. Your wellbeing comes first. Would you like me to arrange a counsellor referral?",
-        ]
-      : [],
-  );
-  const getResponse = (prompt: string) => {
-    const normalized = prompt.toLowerCase();
-    if (
-      normalized.includes("counsellor") ||
-      normalized.includes("counselor") ||
-      normalized.includes("referral")
-    )
-      return "I can request a confidential counsellor referral for you. A member of the student support team will follow up with the next steps. This support is separate from your academic progress.";
-    if (normalized.includes("stress") || normalized.includes("overwhelmed"))
-      return "I’m sorry you’re feeling stressed. Try taking a short break and choosing only one priority today. If this feeling continues, a counsellor can provide confidential personal support.";
-    if (
-      normalized.includes("study") ||
-      normalized.includes("learn") ||
-      normalized.includes("today")
-    )
-      return "Study Trees & Graphs today: review binary-tree traversals, solve 3 practice problems, then take the assessment.";
-    if (
-      normalized.includes("chance") ||
-      normalized.includes("hired") ||
-      normalized.includes("google")
-    )
-      return "Your profile does not include a measured Google hiring probability. Your readiness is 72%, so treat Google as a stretch target and strengthen DSA, Operating Systems and System Design.";
-    if (normalized.includes("company") || normalized.includes("target"))
-      return "Target Nexa Systems first: it is your strongest current match at 85% fit. Veridian is a 76% stretch opportunity.";
-    if (
-      normalized.includes("readiness") ||
-      normalized.includes("ready") ||
-      normalized.includes("low")
-    )
-      return "Your readiness is 72%. The biggest factors holding it back are Trees & Graphs, Operating Systems and interview confidence.";
-    if (normalized.includes("resume") || normalized.includes("cv"))
-      return "Your resume is strongest in Python, full-stack projects and GitHub activity. Add SQL, REST APIs and Docker evidence.";
-    return "I can help with study plans, company fit, readiness, resumes, roadmaps, mock interviews and wellbeing support.";
-  };
-  const ask = (text: string) => {
-    const response = getResponse(text);
-    setMessages((m) => [...m, `You: ${text}`, `CareerOS AI: ${response}`]);
+  const [loading, setLoading] = useState(false);
+  const [provider, setProvider] = useState<"gemini" | "mock">("mock");
+  const chatBottomRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const isStressed = typeof window !== "undefined" && localStorage.getItem("careerOSStress");
+    if (isStressed) {
+      return [
+        { role: "user", content: "I feel stressed and overwhelmed with placement preparation." },
+        {
+          role: "assistant",
+          content:
+            "I hear you, and your wellbeing comes first. Take a deep breath and give yourself permission to pause. Would you like me to request a confidential student counsellor referral for you?",
+        },
+      ];
+    }
+    return [
+      {
+        role: "assistant",
+        content: `Hi ${studentName}! I’m your CareerOS AI mentor powered by Gemini. What would you like to prepare or improve today?`,
+      },
+    ];
+  });
+
+  useEffect(() => {
+    careerApi.getAiStatus().then((s) => {
+      if (s.isAvailable) setProvider("gemini");
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const ask = async (text: string) => {
+    if (!text.trim() || loading) return;
+    const userMsg: ChatMessage = { role: "user", content: text.trim() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setQ("");
-    act("AI answered your question");
+    setLoading(true);
+
+    try {
+      const res = await careerApi.chat(updated, {
+        name: studentName,
+        targetRole: "Software Engineer",
+        targetCompany: "TechNova",
+        readinessScore: 72,
+        wellbeing: localStorage.getItem("careerOSStress") ? "STRESSED" : "FOCUSED",
+      });
+      setMessages([...updated, { role: "assistant", content: res.message }]);
+      setProvider(res.provider);
+      act(`CareerOS AI answered (${res.provider === "gemini" ? "Gemini 2.5 Flash" : "Smart Mock"})`);
+    } catch {
+      setMessages([
+        ...updated,
+        {
+          role: "assistant",
+          content:
+            "I'm currently running in offline mode. Focus on Trees & Graphs practice and Operating Systems fundamentals today.",
+        },
+      ]);
+      act("AI answered your question");
+    } finally {
+      setLoading(false);
+    }
   };
+
   const refer = () => {
     setMessages((m) => [
       ...m,
-      "You: Refer me to a counsellor",
-      "CareerOS AI: Your counsellor referral request has been recorded. Please watch your student email for confidential follow-up from the support team.",
+      { role: "user", content: "Refer me to a counsellor" },
+      {
+        role: "assistant",
+        content:
+          "Your counsellor referral request has been recorded. Please watch your student email for confidential follow-up from our student support team. Take things one step at a time today.",
+      },
     ]);
     localStorage.removeItem("careerOSStress");
     act("Counsellor referral requested");
   };
+
   return (
     <div className="aiPanel">
       <div className="aiHead">
@@ -2431,46 +2785,80 @@ function Ai({ close, act }: any) {
           <Sparkles size={17} />
         </div>
         <span>
-          <b>CareerOS AI</b>
-          <small>Always learning your journey</small>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <b>CareerOS AI</b>
+            <span className={`aiBadge ${provider === "gemini" ? "active" : "mock"}`} style={{ fontSize: 9 }}>
+              {provider === "gemini" ? "Gemini 2.5 Flash" : "Offline Mode"}
+            </span>
+          </div>
+          <small>Personalized placement & career mentor</small>
         </span>
         <button className="icon" onClick={close}>
-          <X />
+          <X size={18} />
         </button>
       </div>
+
       <div className="aiChat">
-        <p>
-          Hi Alex! I’m your CareerOS AI. What would you like to improve today?
-        </p>
         {messages.map((m, i) => (
-          <p className={i % 2 === 0 ? "userMsg" : "botMsg"} key={i}>
-            {m}
-          </p>
+          <div
+            className={m.role === "user" ? "userMsg" : "botMsg"}
+            key={i}
+            style={{
+              fontSize: 11,
+              lineHeight: 1.55,
+              padding: "10px 12px",
+              background: m.role === "user" ? "#34305a" : "#222635",
+              borderRadius: 10,
+              marginBottom: 10,
+              marginLeft: m.role === "user" ? 30 : 0,
+              marginRight: m.role === "assistant" ? 15 : 0,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {m.content}
+          </div>
         ))}
+
+        {loading && (
+          <div className="aiTyping">
+            <Sparkles size={12} className="aiSpin" style={{ marginRight: 4 }} />
+            CareerOS AI is thinking
+            <span className="aiDot" />
+            <span className="aiDot" />
+            <span className="aiDot" />
+          </div>
+        )}
+        <div ref={chatBottomRef} />
       </div>
+
       <div className="suggestions">
         {[
           "What should I study today?",
-          "Which company should I target?",
-          "Why is my readiness low?",
+          "How to crack Google SWE interview?",
+          "Why is my readiness 72%?",
+          "How to improve my resume bullets?",
         ].map((x) => (
-          <button onClick={() => ask(x)} key={x}>
+          <button onClick={() => ask(x)} key={x} disabled={loading}>
             {x}
           </button>
         ))}
-        {localStorage.getItem("careerOSStress") && (
-          <button onClick={refer}>Refer me to a counsellor</button>
+        {typeof window !== "undefined" && localStorage.getItem("careerOSStress") && (
+          <button onClick={refer} style={{ borderColor: "#ea9e9e", color: "#ffd1d1" }}>
+            Refer me to a counsellor
+          </button>
         )}
       </div>
+
       <div className="aiInput">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && q && ask(q)}
-          placeholder="Ask anything…"
+          placeholder="Ask anything about roadmaps, interviews, companies…"
+          disabled={loading}
         />
-        <button onClick={() => q && ask(q)}>
-          <Send size={16} />
+        <button onClick={() => q && ask(q)} disabled={!q.trim() || loading}>
+          {loading ? <RefreshCw size={14} className="aiSpin" /> : <Send size={15} />}
         </button>
       </div>
     </div>

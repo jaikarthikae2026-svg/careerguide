@@ -1,0 +1,172 @@
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  college: string;
+  degree: string;
+  branch: string;
+  graduationYear: number;
+  targetRole: string;
+  availableHoursPerDay: number;
+  currentLevel: number;
+  xp: number;
+}
+
+export interface SkillItem {
+  id: string;
+  name: string;
+  category: string;
+  proficiency: number;
+  status: string;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  description: string;
+  difficulty: string;
+}
+
+export interface JobRole {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+}
+
+export interface Resource {
+  id: string;
+  skillId: string;
+  title: string;
+  type: string;
+  difficulty: string;
+  estimatedMinutes: number;
+  url: string;
+  description: string;
+}
+
+export interface Problem {
+  id: string;
+  skillId: string;
+  title: string;
+  difficulty: string;
+  estimatedMinutes: number;
+  xpReward: number;
+  description: string;
+}
+
+export interface Assessment {
+  id: string;
+  skillId: string;
+  title: string;
+  durationMinutes: number;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  description: string;
+  technologies: string;
+  githubUrl: string;
+}
+
+export interface Connection {
+  id: string;
+  platform: string;
+  username: string;
+  isConnected: boolean;
+  metadata: Record<string, any>;
+}
+
+export const user: UserProfile = {
+  id: 'alex',
+  name: 'Alex Johnson',
+  email: 'alex@careeros.demo',
+  passwordHash: '$2b$10$1f5mr.pT05yuI.WFQFjR0eE0gn0cK8NqRifx74NuGJURfqg7Y1E9K',
+  college: 'Demo Institute of Technology',
+  degree: 'B.Tech',
+  branch: 'Computer Science',
+  graduationYear: 2026,
+  targetRole: 'Software Engineer',
+  availableHoursPerDay: 2,
+  currentLevel: 12,
+  xp: 1250,
+};
+
+export const skills: SkillItem[] = [
+  ['python', 'Python', 'PROGRAMMING', 85, 'MASTERED'],
+  ['javascript', 'JavaScript', 'PROGRAMMING', 70, 'IN_PROGRESS'],
+  ['arrays', 'Arrays', 'DSA', 90, 'MASTERED'],
+  ['linked_lists', 'Linked Lists', 'DSA', 85, 'MASTERED'],
+  ['trees', 'Trees', 'DSA', 60, 'IN_PROGRESS'],
+  ['graphs', 'Graphs', 'DSA', 20, 'LOCKED'],
+  ['dynamic_programming', 'Dynamic Programming', 'DSA', 30, 'SKILL_GAP'],
+  ['dbms', 'DBMS', 'CORE_CS', 65, 'IN_PROGRESS'],
+  ['operating_systems', 'Operating Systems', 'CORE_CS', 35, 'SKILL_GAP'],
+  ['networks', 'Computer Networks', 'CORE_CS', 45, 'SKILL_GAP'],
+  ['oop', 'OOP', 'CORE_CS', 75, 'MASTERED'],
+  ['communication', 'Communication', 'COMMUNICATION', 72, 'IN_PROGRESS'],
+  ['interview_skills', 'Interview Skills', 'INTERVIEW', 58, 'IN_PROGRESS'],
+].map(([id, name, category, proficiency, status]) => ({
+  id: String(id),
+  name: String(name),
+  category: String(category),
+  proficiency: Number(proficiency),
+  status: String(status),
+}));
+
+export const companies: Company[] = [
+  { id: 'technova', name: 'TechNova', industry: 'Product Engineering', description: 'Building scalable developer tools.', difficulty: 'Medium' },
+  { id: 'cloudsphere', name: 'CloudSphere', industry: 'Cloud Infrastructure', description: 'Cloud-native infrastructure platforms.', difficulty: 'Hard' },
+  { id: 'datacore', name: 'DataCore', industry: 'Data Platforms', description: 'Data intelligence solutions.', difficulty: 'Medium' },
+  { id: 'innovatelabs', name: 'InnovateLabs', industry: 'SaaS', description: 'Collaborative business software.', difficulty: 'Medium' },
+  { id: 'futureworks', name: 'FutureWorks', industry: 'AI', description: 'Applied AI products.', difficulty: 'Hard' },
+];
+
+export const role: JobRole = {
+  id: 'software-engineer',
+  title: 'Software Engineer',
+  description: 'Build reliable product experiences.',
+  companyId: 'technova',
+};
+
+export const requirements: [string, number, number][] = [
+  ['python', 75, 9],
+  ['arrays', 75, 8],
+  ['linked_lists', 70, 7],
+  ['trees', 70, 9],
+  ['graphs', 65, 8],
+  ['dbms', 60, 7],
+  ['operating_systems', 55, 7],
+  ['communication', 65, 6],
+  ['interview_skills', 60, 7],
+];
+
+export const resources: Resource[] = [
+  { id: 'binary-trees-video', skillId: 'trees', title: 'Binary Trees Fundamentals', type: 'VIDEO', difficulty: 'BEGINNER', estimatedMinutes: 45, url: 'https://example.com/trees', description: 'A visual introduction to binary trees.' },
+  { id: 'tree-traversal-article', skillId: 'trees', title: 'Tree Traversal Explained', type: 'ARTICLE', difficulty: 'BEGINNER', estimatedMinutes: 15, url: 'https://example.com/traversal', description: 'Understand DFS and BFS traversal.' },
+  { id: 'tree-docs', skillId: 'trees', title: 'Tree Data Structures', type: 'DOCUMENTATION', difficulty: 'INTERMEDIATE', estimatedMinutes: 20, url: 'https://example.com/docs', description: 'Reference notes for tree operations.' },
+];
+
+export const problems: Problem[] = [
+  { id: 'invert-tree', skillId: 'trees', title: 'Invert Binary Tree', difficulty: 'EASY', estimatedMinutes: 20, xpReward: 50, description: 'Transform a binary tree.' },
+  { id: 'level-order', skillId: 'trees', title: 'Binary Tree Level Order Traversal', difficulty: 'MEDIUM', estimatedMinutes: 30, xpReward: 75, description: 'Traverse breadth-first.' },
+  { id: 'serialize-tree', skillId: 'trees', title: 'Serialize and Deserialize Binary Tree', difficulty: 'HARD', estimatedMinutes: 45, xpReward: 120, description: 'Encode and restore trees.' },
+];
+
+export const assessments: Assessment[] = [
+  { id: 'trees-assessment', skillId: 'trees', title: 'Trees Quick Assessment', durationMinutes: 10 },
+];
+
+export const projects: Project[] = [
+  { id: 'career-platform', title: 'AI Career Platform', description: 'Career preparation platform with intelligent skill paths.', technologies: 'React, Node.js, OpenAI', githubUrl: 'https://github.com/alex/careeros' },
+  { id: 'attendance', title: 'Smart Attendance System', description: 'Computer-vision attendance tracking system.', technologies: 'Python, OpenCV', githubUrl: 'https://github.com/alex/attendance' },
+];
+
+export const connections: Connection[] = [
+  { id: 'github', platform: 'GITHUB', username: 'alexjohnson', isConnected: true, metadata: { repositories: 12 } },
+  { id: 'leetcode', platform: 'LEETCODE', username: 'alex123', isConnected: true, metadata: { problemsSolved: 185, easy: 80, medium: 85, hard: 20 } },
+  { id: 'linkedin', platform: 'LINKEDIN', username: 'alex-johnson', isConnected: true, metadata: { profileCompleted: true } },
+];
